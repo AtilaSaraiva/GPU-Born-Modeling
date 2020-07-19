@@ -1,0 +1,6 @@
+rm --force snap/*
+cd ..
+rm mod
+make
+cd -
+scons

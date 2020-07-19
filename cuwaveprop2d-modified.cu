@@ -9,6 +9,7 @@ vladimir.kazei@kaust.edu.sa
 */
 
 #include <rsf.hh>
+#include <iostream>
 #include "stdio.h"
 #include "math.h"
 #include "stdlib.h"
@@ -22,6 +23,8 @@ Add this to c_cpp_properties.json if linting isn't working for CUDA libraries
 */
 #include "cuda.h"
 #include "cuda_runtime.h"
+
+using namespace std;
 
 // Check error codes for CUDA functions
 #define CHECK(call)                                                \
@@ -64,6 +67,11 @@ __constant__ int c_nx;        /* x dim */
 __constant__ int c_ny;        /* y dim */
 __constant__ int c_nt;        /* time steps */
 __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
+
+
+// Extend the velocity field
+
+void extendVelField(nx,ny,nb,h_
 
 // Save snapshot as a binary, filename snap/snap_tag_it_ny_nx
 void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
@@ -269,15 +277,21 @@ int main(int argc, char *argv[])
     sf_axis ax,ay;
     int nx, ny;
     float dx, dy;
-    float _vp = 3300.0;
-    ay = sf_iaxa(Fvel,1); ny = sf_n(ay); dy = sf_d(ay);
-    ax = sf_iaxa(Fvel,2); nx = sf_n(ax); dx = sf_d(ax);
+    ay = sf_iaxa(Fvel,2); ny = sf_n(ay); dy = sf_d(ay);
+    ax = sf_iaxa(Fvel,1); nx = sf_n(ax); dx = sf_d(ax);
 
     size_t nxy = nx * ny;
     size_t nbytes = nxy * sizeof(float);/* bytes to store nx * ny */
 
     // Allocate memory for velocity model
     float *h_vp = new float[nxy]; sf_floatread(h_vp, nxy, Fvel);
+    float _vp = h_vp[0];
+    for(int i=1; i < nxy; i++){
+        if(h_vp[i] > _vp){
+            _vp = h_vp[i];
+        }
+    }
+    cerr<<"vp = "<<_vp<<endl;
 
     printf("MODEL:\n");
     printf("\t%i x %i\t:ny x nx\n", ny, nx);
@@ -286,8 +300,8 @@ int main(int argc, char *argv[])
 
     // Time stepping
     float t_total = 1.5;               /* total time of wave propagation, sec */
-    float dt = 0.5 * dx / _vp;          /* time step assuming constant vp, sec */
-    int nt = round(t_total / dt);       /* number of time steps */
+    float dt = 0.5 * dx / _vp;         /* time step assuming constant vp, sec */
+    int nt = round(t_total / dt);      /* number of time steps */
     int snap_step = round(0.1 * nt);   /* save snapshot every ... steps */
 
     printf("TIME STEPPING:\n");
