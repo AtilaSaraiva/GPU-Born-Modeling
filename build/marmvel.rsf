@@ -77,21 +77,21 @@ sfcp:	fomels@vostok	Wed Aug 27 16:45:34 2003
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfdd	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sun Jul 19 10:47:47 2020
+3.1-git	sfdd	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Fri Aug 14 12:37:39 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfscale	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sun Jul 19 10:47:47 2020
+3.1-git	sfscale	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Fri Aug 14 12:37:39 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfput	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sun Jul 19 10:47:47 2020
+3.1-git	sfput	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Fri Aug 14 12:37:39 2020
 
 	d2=0.004000
 	unit2=km

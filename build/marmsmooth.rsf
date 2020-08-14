@@ -46893,21 +46893,21 @@ Cp:   fomels@vostok   Fri Mar 14 15:32:36 2003
 		sepstr_ready_out() : sets next in="stdin"
 		data_format="xdr_float"
 
-3.1-git	sfdd	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sun Jul 19 15:03:28 2020
+3.1-git	sfdd	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Fri Aug 14 12:37:46 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfscale	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sun Jul 19 15:03:28 2020
+3.1-git	sfscale	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Fri Aug 14 12:37:46 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfput	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sun Jul 19 15:03:28 2020
+3.1-git	sfput	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Fri Aug 14 12:37:46 2020
 
 	d2=0.024000
 	unit2=km

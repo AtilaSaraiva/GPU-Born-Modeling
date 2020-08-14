@@ -172,7 +172,7 @@ __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, i
         }
     }
 
-    // if thread near TOP border of a block    
+    // if thread near TOP border of a block
     if ((ty >= (BDIMY - HALO)) || ((gy + HALO) >= ny))
     {
         // if global top
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
     // Setup CUDA run
     dim3 block(BDIMX, BDIMY);
     dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
-    
+
 
     // MAIN LOOP
     printf("Time loop...\n");
@@ -388,7 +388,7 @@ int main(int argc, char *argv[])
 
         // Save snapshot every snap_step iterations
         if ((it % snap_step == 0))
-        {   
+        {
             printf("%i/%i\n", it+1, nt);
             saveSnapshotIstep(it, d_u3, nx, ny,"u3");
         }

@@ -71,7 +71,61 @@ __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
 
 // Extend the velocity field
 
-void extendVelField(nx,ny,nb,h_
+void extendVelField(int nx, int ny, int nb, float *h_vp, float *h_vpe)
+{
+    int nxb = nx + 2 * nb;
+    for(int j=nb; j<(nx+nb); j++){
+        for(int i=0; i<nb; i++){
+            h_vpe[i * nxb + j] = h_vp[j-nb];
+            h_vpe[(nb + ny + i) * nxb + j] = h_vp[(ny - 1) * nx + (j - nb)];
+        }
+    }
+    for(int i=nb; i<(ny+nb); i++){
+        for(int j=0; j<nb; j++){
+            h_vpe[i * nxb + j] = h_vp[(i - nb) * nx];
+            h_vpe[i * nxb + nb + nx + j] = h_vp[(i - nb) * nx + (nx - 1)];
+        }
+    }
+    for(int j=0; j<nb; j++){
+        for(int i=0; i<nb; i++){
+            h_vpe[i * nxb + j] = h_vp[0];
+            h_vpe[i * nxb + (j + nx + nb)] = h_vp[nx - 1];
+            h_vpe[(i + ny + nb) * nxb + j] = h_vp[(ny - 1) * nx];
+            h_vpe[(i + ny + nb) * nxb + (j + nx + nb)] = h_vp[ny * nx - 1];
+        }
+    }
+    for(int j=0; j<nx; j++){
+        for(int i=0; i<ny; i++){
+            h_vpe[(i + nb) * nxb + j + nb] = h_vp[i * nx + j];
+        }
+    }
+}
+
+void abc_coef (int nb, float *abc)
+{
+    for(int i=0; i<nb; i++){
+        abc[i] = exp (-pow(0.008 * (nb - i + 1),2.0));
+    }
+}
+
+void taper (int nx, int ny, int nb, float *abc, float *campo)
+{
+    int nxb = nx + 2 * nb;
+    int nyb = ny + 2 * nb;
+    for(int j=0; j<nxb; j++){
+        for(int i=0; i<nb; i++){
+            campo[i * nxb + j] *= abc[i];
+            campo[(nb + ny + i) * nxb + j] *= abc[nb - i - 1];
+        }
+    }
+    for(int i=0; i<nyb; i++){
+        for(int j=0; j<nb; j++){
+            campo[i * nxb + j] *= abc[j];
+            campo[i * nxb + nb + nx + j] *= abc[nb - j - 1];
+        }
+    }
+}
+
 
 // Save snapshot as a binary, filename snap/snap_tag_it_ny_nx
 void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
@@ -275,23 +329,42 @@ int main(int argc, char *argv[])
 
     // R/W axes
     sf_axis ax,ay;
-    int nx, ny;
+    int nx, ny, nb, nxb, nyb;
     float dx, dy;
     ay = sf_iaxa(Fvel,2); ny = sf_n(ay); dy = sf_d(ay);
     ax = sf_iaxa(Fvel,1); nx = sf_n(ax); dx = sf_d(ax);
 
     size_t nxy = nx * ny;
-    size_t nbytes = nxy * sizeof(float);/* bytes to store nx * ny */
+    nb = 0.2 * nx;
+    nxb = nx + 2 * nb;
+    nyb = ny + 2 * nb;
+    size_t nbxy = nxb * nyb;
+    size_t nbytes = nbxy * sizeof(float);/* bytes to store nx * ny */
 
     // Allocate memory for velocity model
     float *h_vp = new float[nxy]; sf_floatread(h_vp, nxy, Fvel);
+    float *h_vpe = new float[nbxy];
+    extendVelField(nx, ny, nb, h_vp, h_vpe);
     float _vp = h_vp[0];
     for(int i=1; i < nxy; i++){
         if(h_vp[i] > _vp){
             _vp = h_vp[i];
         }
     }
+
     cerr<<"vp = "<<_vp<<endl;
+    cerr<<"nb = "<<nb<<endl;
+
+
+    float *h_abc = new float[nb];
+    abc_coef(nb, h_abc);
+    taper(nx, ny, nb, h_abc, h_vpe);
+
+    sf_file Fout=NULL;
+    Fout = sf_output("oi");
+    sf_putint(Fout,"n1",nxb);
+    sf_putint(Fout,"n2",nyb);
+    sf_floatwrite(h_vpe, nbxy, Fout);
 
     printf("MODEL:\n");
     printf("\t%i x %i\t:ny x nx\n", ny, nx);
@@ -342,16 +415,19 @@ int main(int argc, char *argv[])
 
     // Allocate memory on device
     printf("Allocate and copy memory on the device...\n");
-    float *d_u1, *d_u2, *d_vp, *d_wavelet;
+    float *d_u1, *d_u2, *d_vp, *d_wavelet, *d_abc;
     CHECK(cudaMalloc((void **)&d_u1, nbytes))       /* wavefield at t-2 */
     CHECK(cudaMalloc((void **)&d_u2, nbytes))       /* wavefield at t-1 */
     CHECK(cudaMalloc((void **)&d_vp, nbytes))       /* velocity model */
     CHECK(cudaMalloc((void **)&d_wavelet, tbytes)); /* source term for each time step */
+    CHECK(cudaMalloc((void **)&d_abc, nb * sizeof(float)));
     // Fill allocated memory with a value
     CHECK(cudaMemset(d_u1, 0, nbytes))
     CHECK(cudaMemset(d_u2, 0, nbytes))
+
     // Copy arrays from host to device
-    CHECK(cudaMemcpy(d_vp, h_vp, nbytes, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_vp, h_vpe, nbytes, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_abc, h_abc, nb * sizeof(float), cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_wavelet, h_wavelet, tbytes, cudaMemcpyHostToDevice));
 
     // Copy constants to device constant memory
