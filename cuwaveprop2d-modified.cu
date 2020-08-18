@@ -65,6 +65,7 @@ __constant__ int c_isrc;      /* source location, ox */
 __constant__ int c_jsrc;      /* source location, oz */
 __constant__ int c_nx;        /* x dim */
 __constant__ int c_ny;        /* y dim */
+__constant__ int c_nb;
 __constant__ int c_nt;        /* time steps */
 __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
 
@@ -126,6 +127,24 @@ void taper (int nx, int ny, int nb, float *abc, float *campo)
     }
 }
 
+__global__ void taper_gpu (float *d_abc, float *campo)
+{
+    int nx = c_nx - 2 * c_nb;
+    int ny = c_ny - 2 * c_nb;
+
+    for(int j=0; j<c_nx; j++){
+        for(int i=0; i<c_nb; i++){
+            campo[i * c_nx + j] *= d_abc[i];
+            campo[(c_nb + ny + i) * c_nx + j] *= d_abc[c_nb - i - 1];
+        }
+    }
+    for(int i=0; i<c_ny; i++){
+        for(int j=0; j<c_nb; j++){
+            campo[i * c_nx + j] *= d_abc[j];
+            campo[i * c_nx + c_nb + nx + j] *= d_abc[c_nb - j - 1];
+        }
+    }
+}
 
 // Save snapshot as a binary, filename snap/snap_tag_it_ny_nx
 void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
@@ -168,7 +187,7 @@ __global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it)
     unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int idx = gy * c_nx + gx;
 
-    if ((gx == c_isrc) && (gy == c_jsrc))
+    if ((gx == c_isrc + c_nb) && (gy == c_jsrc + c_nb))
     {
         d_u[idx] += d_wavelet[it];
     }
@@ -435,8 +454,9 @@ int main(int argc, char *argv[])
     CHECK(cudaMemcpyToSymbol(c_coef, coef, 5 * sizeof(float)));
     CHECK(cudaMemcpyToSymbol(c_isrc, &isrc, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_jsrc, &jsrc, sizeof(int)));
-    CHECK(cudaMemcpyToSymbol(c_nx, &nx, sizeof(int)));
-    CHECK(cudaMemcpyToSymbol(c_ny, &ny, sizeof(int)));
+    CHECK(cudaMemcpyToSymbol(c_nx, &nxb, sizeof(int)));
+    CHECK(cudaMemcpyToSymbol(c_ny, &nyb, sizeof(int)));
+    CHECK(cudaMemcpyToSymbol(c_nb, &nb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nt, &nt, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_dt2dx2, &dt2dx2, sizeof(float)));
     printf("\t%f MB\n", (4 * nbytes + tbytes)/1024/1024);
@@ -465,13 +485,16 @@ int main(int argc, char *argv[])
 
     // Setup CUDA run
     dim3 block(BDIMX, BDIMY);
-    dim3 grid((nx + block.x - 1) / block.x, (ny + block.y - 1) / block.y);
+    dim3 grid((nxb + block.x - 1) / block.x, (nyb + block.y - 1) / block.y);
 
 
     // MAIN LOOP
     printf("Time loop...\n");
     for (int it = 0; it < nt; it++)
     {
+        taper_gpu<<<1,1>>>(d_abc, d_u1);
+        taper_gpu<<<1,1>>>(d_abc, d_u2);
+
         // These kernels are in the same stream so they will be executed one by one
         kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it);
         kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
@@ -486,7 +509,7 @@ int main(int argc, char *argv[])
         if ((it % snap_step == 0))
         {
             printf("%i/%i\n", it+1, nt);
-            saveSnapshotIstep(it, d_u3, nx, ny,"u3");
+            saveSnapshotIstep(it, d_u3, nxb, nyb,"u3");
         }
     }
     printf("OK\n");
