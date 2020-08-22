@@ -65,8 +65,9 @@ __constant__ int c_isrc;      /* source location, ox */
 __constant__ int c_jsrc;      /* source location, oz */
 __constant__ int c_nx;        /* x dim */
 __constant__ int c_ny;        /* y dim */
-__constant__ int c_nxy;        /* y dim */
-__constant__ int c_nb;
+__constant__ int c_nr;        /* num of receivers */
+__constant__ int c_nxy;       /* total number of elements in the snap array (border included)*/
+__constant__ int c_nb;        /* border size */
 __constant__ int c_nt;        /* time steps */
 __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
 
@@ -158,11 +159,11 @@ __global__ void taper_gpu (float *d_tapermask, float *campo)
     }
 }
 
-__global__ void receptors(int it, float *d_u1, float *d_data)
+__global__ void receptors(int it, int gxbeg, int gxend, float *d_u1, float *d_data)
 {
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(gx < c_nx - c_nb && gx > c_nb){
+    if(gx < gxend + c_nb && gx > c_nb + gxbeg){
         d_data[gx * c_nt + it] = d_u1[c_nb * c_nx + gx];
     }
 }
@@ -388,6 +389,7 @@ int main(int argc, char *argv[])
     int isrc; sf_getint("isrc",&isrc);
     int jsrc; sf_getint("jsrc",&jsrc);
     int gxbeg; sf_getint("gxbeg",&gxbeg);
+    int gxend = gxbeg + nr;
 
     // R/W axes
     sf_axis ax,ay;
@@ -510,6 +512,7 @@ int main(int argc, char *argv[])
     CHECK(cudaMemcpyToSymbol(c_jsrc, &jsrc, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nx, &nxb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_ny, &nyb, sizeof(int)));
+    CHECK(cudaMemcpyToSymbol(c_nr, &nr, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nxy, &nbxy, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nb, &nb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nt, &nt, sizeof(int)));
@@ -553,7 +556,7 @@ int main(int argc, char *argv[])
         kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it);
         kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
         CHECK(cudaDeviceSynchronize());
-        receptors<<<(nxb + 32) / 32, 32>>>(it, d_u1, d_data);
+        receptors<<<(nxb + 32) / 32, 32>>>(it, gxbeg, gxend, d_u1, d_data);
         CHECK(cudaDeviceSynchronize());
 
         // Exchange time steps
