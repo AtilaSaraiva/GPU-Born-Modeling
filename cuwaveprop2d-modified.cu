@@ -65,6 +65,7 @@ __constant__ int c_isrc;      /* source location, ox */
 __constant__ int c_jsrc;      /* source location, oz */
 __constant__ int c_nx;        /* x dim */
 __constant__ int c_ny;        /* y dim */
+__constant__ int c_nxy;        /* y dim */
 __constant__ int c_nb;
 __constant__ int c_nt;        /* time steps */
 __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
@@ -127,7 +128,7 @@ void taper (int nx, int ny, int nb, float *abc, float *campo)
     }
 }
 
-__global__ void taper_gpu (float *d_abc, float *campo)
+__global__ void taper_gpu_serial (float *d_abc, float *campo)
 {
     int nx = c_nx - 2 * c_nb;
     int ny = c_ny - 2 * c_nb;
@@ -145,6 +146,38 @@ __global__ void taper_gpu (float *d_abc, float *campo)
         }
     }
 }
+
+__global__ void taper_gpu (float *d_tapermask, float *campo)
+{
+    unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int gid = gy * c_nx + gx;
+
+    if(gid < c_nxy){
+        campo[gid] *= d_tapermask[gid];
+    }
+}
+
+__global__ void receptors(int it, float *d_u1, float *d_data)
+{
+    unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if(gx < c_nx - c_nb && gx > c_nb){
+        d_data[gx * c_nt + it] = d_u1[c_nb * c_nx + gx];
+    }
+}
+
+__global__ void checksmt(float *d_data)
+{
+    printf("começano\n");
+    unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
+    for(int i = 0; i < c_nt; i++){
+        if(gx < c_nx && i > 248){
+            printf("gx = %d, it = %d data = %f\n", gx, i, d_data[i * c_nx + gx]);
+        }
+    }
+}
+
 
 // Save snapshot as a binary, filename snap/snap_tag_it_ny_nx
 void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
@@ -374,16 +407,20 @@ int main(int argc, char *argv[])
     cerr<<"vp = "<<_vp<<endl;
     cerr<<"nb = "<<nb<<endl;
 
-
+    // Taper mask
     float *h_abc = new float[nb];
+    float *h_tapermask = new float[nbxy];
+    for(int i=0; i < nbxy; i++){
+        h_tapermask[i] = 1;
+    }
     abc_coef(nb, h_abc);
-    taper(nx, ny, nb, h_abc, h_vpe);
+    taper(nx, ny, nb, h_abc, h_tapermask);
 
-    sf_file Fout=NULL;
-    Fout = sf_output("oi");
-    sf_putint(Fout,"n1",nxb);
-    sf_putint(Fout,"n2",nyb);
-    sf_floatwrite(h_vpe, nbxy, Fout);
+    //sf_file Fout=NULL;
+    //Fout = sf_output("oi");
+    //sf_putint(Fout,"n1",nxb);
+    //sf_putint(Fout,"n2",nyb);
+    //sf_floatwrite(h_tapermask, nbxy, Fout);
 
     printf("MODEL:\n");
     printf("\t%i x %i\t:ny x nx\n", ny, nx);
@@ -400,6 +437,10 @@ int main(int argc, char *argv[])
     printf("\t%e\t:t_total\n", t_total);
     printf("\t%e\t:dt\n", dt);
     printf("\t%i\t:nt\n", nt);
+
+    // Data
+    size_t dbytes = nxb * nt * sizeof(float);
+    float *h_data = new float[nxb * nt];
 
     // Source
     float f0 = 10.0;                    /* source dominant frequency, Hz */
@@ -434,19 +475,22 @@ int main(int argc, char *argv[])
 
     // Allocate memory on device
     printf("Allocate and copy memory on the device...\n");
-    float *d_u1, *d_u2, *d_vp, *d_wavelet, *d_abc;
+    float *d_u1, *d_u2, *d_vp, *d_wavelet, *d_tapermask, *d_data;
     CHECK(cudaMalloc((void **)&d_u1, nbytes))       /* wavefield at t-2 */
     CHECK(cudaMalloc((void **)&d_u2, nbytes))       /* wavefield at t-1 */
     CHECK(cudaMalloc((void **)&d_vp, nbytes))       /* velocity model */
     CHECK(cudaMalloc((void **)&d_wavelet, tbytes)); /* source term for each time step */
-    CHECK(cudaMalloc((void **)&d_abc, nb * sizeof(float)));
+    CHECK(cudaMalloc((void **)&d_tapermask, nbytes));
+    CHECK(cudaMalloc((void **)&d_data, dbytes));
+
     // Fill allocated memory with a value
     CHECK(cudaMemset(d_u1, 0, nbytes))
     CHECK(cudaMemset(d_u2, 0, nbytes))
+    CHECK(cudaMemset(d_data, 0, dbytes))
 
     // Copy arrays from host to device
     CHECK(cudaMemcpy(d_vp, h_vpe, nbytes, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(d_abc, h_abc, nb * sizeof(float), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_tapermask, h_tapermask, nbytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_wavelet, h_wavelet, tbytes, cudaMemcpyHostToDevice));
 
     // Copy constants to device constant memory
@@ -456,6 +500,7 @@ int main(int argc, char *argv[])
     CHECK(cudaMemcpyToSymbol(c_jsrc, &jsrc, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nx, &nxb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_ny, &nyb, sizeof(int)));
+    CHECK(cudaMemcpyToSymbol(c_nxy, &nbxy, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nb, &nb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nt, &nt, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_dt2dx2, &dt2dx2, sizeof(float)));
@@ -487,17 +532,18 @@ int main(int argc, char *argv[])
     dim3 block(BDIMX, BDIMY);
     dim3 grid((nxb + block.x - 1) / block.x, (nyb + block.y - 1) / block.y);
 
-
     // MAIN LOOP
     printf("Time loop...\n");
     for (int it = 0; it < nt; it++)
     {
-        taper_gpu<<<1,1>>>(d_abc, d_u1);
-        taper_gpu<<<1,1>>>(d_abc, d_u2);
+        taper_gpu<<<grid,block>>>(d_tapermask, d_u1);
+        taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
 
         // These kernels are in the same stream so they will be executed one by one
         kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it);
         kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
+        CHECK(cudaDeviceSynchronize());
+        receptors<<<(nxb + 32) / 32, 32>>>(it, d_u1, d_data);
         CHECK(cudaDeviceSynchronize());
 
         // Exchange time steps
@@ -516,13 +562,33 @@ int main(int argc, char *argv[])
 
     CHECK(cudaGetLastError());
 
+    CHECK(cudaMemcpy(h_data, d_data, dbytes, cudaMemcpyDeviceToHost));
+
+    sf_file Fout=NULL;
+    Fout = sf_output("oi");
+    sf_putint(Fout,"n1",nt);
+    sf_putint(Fout,"n2",nxb);
+    sf_floatwrite(h_data, nxb * nt, Fout);
+
+    //FILE *fdata = fopen("oi.bin", "w");
+
+    //fwrite(h_data, sizeof(float), nxb * nt, fdata);
+    //fflush(stdout);
+    //fclose(fdata);
+
     printf("Clean memory...");
     delete[] h_vp;
+    delete[] h_vpe;
+    delete[] h_data;
+    delete[] h_abc;
+    delete[] h_tapermask;
     delete[] h_time;
     delete[] h_wavelet;
 
     CHECK(cudaFree(d_u1));
     CHECK(cudaFree(d_u2));
+    CHECK(cudaFree(d_tapermask));
+    CHECK(cudaFree(d_data));
     CHECK(cudaFree(d_vp));
     CHECK(cudaFree(d_wavelet));
     printf("OK\n");

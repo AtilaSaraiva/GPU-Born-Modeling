@@ -1,7 +1,7 @@
-3.1-git	mod	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Tue Aug 18 12:05:07 2020
+3.1-git	mod	GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build:	atila@JurosComposto	Sat Aug 22 11:32:52 2020
 
-	n2=2601
+	n2=1051
 	data_format="native_float"
 	esize=4
 	in="/var/tmp/GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build/oi.rsf@"
-	n1=1051
+	n1=4125

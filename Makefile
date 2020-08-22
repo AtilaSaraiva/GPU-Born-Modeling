@@ -2,6 +2,6 @@ LDFLAGS= -I$(RSFROOT)/include -L$(RSFROOT)/lib -lrsf++ -lrsf -lm -ltirpc -lfftw3
 
 CULIBS= -L /opt/cuda/lib -I /opt/cuda/include -lcudart -lcuda -lstdc++ -lcufft
 
-mod: cuwaveprop2d.cu
+mod: cuwaveprop2d-modified.cu
 	nvcc cuwaveprop2d-modified.cu $(LDFLAGS) -o mod
 
