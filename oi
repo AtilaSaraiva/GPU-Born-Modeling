@@ -1,7 +1,0 @@
-3.1-git	mod	Artigos/GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation:	atila@JurosComposto	Wed Aug 19 17:29:42 2020
-
-	n2=990
-	data_format="native_float"
-	esize=4
-	in="/var/tmp/oi@"
-	n1=716

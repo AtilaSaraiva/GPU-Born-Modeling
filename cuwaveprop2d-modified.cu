@@ -220,7 +220,7 @@ __global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it)
     unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int idx = gy * c_nx + gx;
 
-    if ((gx == c_isrc + c_nb) && (gy == c_jsrc + c_nb))
+    if ((gx == c_jsrc + c_nb) && (gy == c_isrc + c_nb))
     {
         d_u[idx] += d_wavelet[it];
     }
@@ -379,6 +379,16 @@ int main(int argc, char *argv[])
     sf_file Fvel=NULL;
     Fvel = sf_input("vel");
 
+    // Getting command line parameters
+    //sf_getint('sz',sz);
+    //sf_getint('jsx',jsx);
+    //sf_getint('gzbeg',gzbeg);
+    //sf_getint('jgx',jgx);
+    int nr; sf_getint("nr",&nr);
+    int isrc; sf_getint("isrc",&isrc);
+    int jsrc; sf_getint("jsrc",&jsrc);
+    int gxbeg; sf_getint("gxbeg",&gxbeg);
+
     // R/W axes
     sf_axis ax,ay;
     int nx, ny, nb, nxb, nyb;
@@ -445,8 +455,8 @@ int main(int argc, char *argv[])
     // Source
     float f0 = 10.0;                    /* source dominant frequency, Hz */
     float t0 = 1.2 / f0;                /* source padding to move wavelet from left of zero */
-    int isrc = round((float)nx / 2);    /* source location, ox */
-    int jsrc = round((float)ny / 2);    /* source location, oz */
+    //int isrc = round((float)nx / 2);    [> source location, ox <]
+    //int jsrc = round((float)ny / 2);    [> source location, oz <]
 
     float *h_wavelet, *h_time;
     float tbytes = nt * sizeof(float);
@@ -565,7 +575,7 @@ int main(int argc, char *argv[])
     CHECK(cudaMemcpy(h_data, d_data, dbytes, cudaMemcpyDeviceToHost));
 
     sf_file Fout=NULL;
-    Fout = sf_output("oi");
+    Fout = sf_output("data");
     sf_putint(Fout,"n1",nt);
     sf_putint(Fout,"n2",nxb);
     sf_floatwrite(h_data, nxb * nt, Fout);
