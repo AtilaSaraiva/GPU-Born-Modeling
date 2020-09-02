@@ -74,6 +74,18 @@ __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
 
 // Extend the velocity field
 
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet);
+
+void dummyVelField(int nxb, int nyb, int nb, float *h_vpe, float *h_dvpe)
+{
+    for (int i = 0; i < nyb; i++){
+        for (int j = 0; j < nxb; j++){
+            h_dvpe[i * nxb + j]  = h_vpe[nb * nxb + j];
+        }
+    }
+}
+
+
 void extendVelField(int nx, int ny, int nb, float *h_vp, float *h_vpe)
 {
     int nxb = nx + 2 * nb;
@@ -395,8 +407,8 @@ int main(int argc, char *argv[])
     sf_axis ax,ay;
     int nx, ny, nb, nxb, nyb;
     float dx, dy;
-    ay = sf_iaxa(Fvel,2); ny = sf_n(ay); dy = sf_d(ay);
-    ax = sf_iaxa(Fvel,1); nx = sf_n(ax); dx = sf_d(ax);
+    ay = sf_iaxa(Fvel,1); ny = sf_n(ay); dy = sf_d(ay);
+    ax = sf_iaxa(Fvel,2); nx = sf_n(ax); dx = sf_d(ax);
 
     size_t nxy = nx * ny;
     nb = 0.2 * nx;
@@ -415,6 +427,10 @@ int main(int argc, char *argv[])
             _vp = h_vp[i];
         }
     }
+
+    // Allocate memory for dummy velocity model and seismogram
+    //float *h_dvpe = new float[nbxy];
+    //dummyVelField(nxb, nyb, nb, h_vpe, h_dvpe);
 
     cerr<<"vp = "<<_vp<<endl;
     cerr<<"nb = "<<nb<<endl;
@@ -453,6 +469,7 @@ int main(int argc, char *argv[])
     // Data
     size_t dbytes = nxb * nt * sizeof(float);
     float *h_data = new float[nxb * nt];
+    float *h_directwave = new float[nxb * nt];
 
     // Source
     float f0 = 10.0;                    /* source dominant frequency, Hz */
@@ -484,6 +501,55 @@ int main(int argc, char *argv[])
     printf("\t%e\t:dt2dx2\n", dt2dx2);
     printf("\t%f\t:min wavelength [m]\n",(float)_vp / (2*f0));
     printf("\t%f\t:ppw\n",(float)_vp / (2*f0) / dx);
+
+    // ===================MODELING======================
+    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet);
+    //modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet);
+    // =================================================
+
+    //sf_file Fout=NULL;
+    //Fout = sf_output("data");
+    //sf_putint(Fout,"n1",nxb);
+    //sf_putint(Fout,"n2",nyb);
+    //sf_floatwrite(h_dvpe, nbxy, Fout);
+
+    sf_file Fout=NULL;
+    Fout = sf_output("data");
+    sf_putint(Fout,"n1",nt);
+    sf_putint(Fout,"n2",nxb);
+    sf_floatwrite(h_data, nxb * nt, Fout);
+
+    //FILE *fdata = fopen("oi.bin", "w");
+
+    //fwrite(h_data, sizeof(float), nxb * nt, fdata);
+    //fflush(stdout);
+    //fclose(fdata);
+
+    printf("Clean memory...");
+    delete[] h_vp;
+    delete[] h_vpe;
+    delete[] h_data;
+    delete[] h_abc;
+    delete[] h_tapermask;
+    delete[] h_time;
+    delete[] h_wavelet;
+
+
+    return 0;
+}
+
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet)
+{
+
+    size_t nxy = nx * ny;
+    int nxb = nx + 2 * nb;
+    int nyb = ny + 2 * nb;
+    float dt2dx2 = (dt * dt) / (dx * dx);   /* const for fd stencil */
+    size_t nbxy = nxb * nyb;
+    size_t nbytes = nbxy * sizeof(float);/* bytes to store nx * ny */
+    size_t dbytes = nxb * nt * sizeof(float);
+    size_t tbytes = nt * sizeof(float);
+    int snap_step = round(0.1 * nt);   /* save snapshot every ... steps */
 
     // Allocate memory on device
     printf("Allocate and copy memory on the device...\n");
@@ -535,11 +601,11 @@ int main(int argc, char *argv[])
     CHECK(cudaSetDevice(0));
 
     // Print out CUDA domain partitioning info
-    printf("CUDA:\n");
-    printf("\t%i x %i\t:block dim\n", BDIMY, BDIMX);
-    printf("\t%i x %i\t:shared dim\n", SDIMY, SDIMX);
-    printf("CFL:\n");
-    printf("\t%f\n", _vp * dt / dx);
+    //printf("CUDA:\n");
+    //printf("\t%i x %i\t:block dim\n", BDIMY, BDIMX);
+    //printf("\t%i x %i\t:shared dim\n", SDIMY, SDIMX);
+    //printf("CFL:\n");
+    //printf("\t%f\n", _vp * dt / dx);
 
     // Setup CUDA run
     dim3 block(BDIMX, BDIMY);
@@ -577,27 +643,6 @@ int main(int argc, char *argv[])
 
     CHECK(cudaMemcpy(h_data, d_data, dbytes, cudaMemcpyDeviceToHost));
 
-    sf_file Fout=NULL;
-    Fout = sf_output("data");
-    sf_putint(Fout,"n1",nt);
-    sf_putint(Fout,"n2",nxb);
-    sf_floatwrite(h_data, nxb * nt, Fout);
-
-    //FILE *fdata = fopen("oi.bin", "w");
-
-    //fwrite(h_data, sizeof(float), nxb * nt, fdata);
-    //fflush(stdout);
-    //fclose(fdata);
-
-    printf("Clean memory...");
-    delete[] h_vp;
-    delete[] h_vpe;
-    delete[] h_data;
-    delete[] h_abc;
-    delete[] h_tapermask;
-    delete[] h_time;
-    delete[] h_wavelet;
-
     CHECK(cudaFree(d_u1));
     CHECK(cudaFree(d_u2));
     CHECK(cudaFree(d_tapermask));
@@ -606,6 +651,4 @@ int main(int argc, char *argv[])
     CHECK(cudaFree(d_wavelet));
     printf("OK\n");
     CHECK(cudaDeviceReset());
-
-    return 0;
 }
