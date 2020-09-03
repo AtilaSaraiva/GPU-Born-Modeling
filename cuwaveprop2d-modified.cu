@@ -80,7 +80,7 @@ void dummyVelField(int nxb, int nyb, int nb, float *h_vpe, float *h_dvpe)
 {
     for (int i = 0; i < nyb; i++){
         for (int j = 0; j < nxb; j++){
-            h_dvpe[i * nxb + j]  = h_vpe[nb * nxb + j];
+            h_dvpe[i * nxb + j]  = h_vpe[i * nxb + nb];
         }
     }
 }
@@ -407,8 +407,10 @@ int main(int argc, char *argv[])
     sf_axis ax,ay;
     int nx, ny, nb, nxb, nyb;
     float dx, dy;
-    ay = sf_iaxa(Fvel,1); ny = sf_n(ay); dy = sf_d(ay);
-    ax = sf_iaxa(Fvel,2); nx = sf_n(ax); dx = sf_d(ax);
+    ay = sf_iaxa(Fvel,2); ny = sf_n(ay); dy = sf_d(ay);
+    ax = sf_iaxa(Fvel,1); nx = sf_n(ax); dx = sf_d(ax);
+    cerr<<"nx = "<<nx<<endl;
+    cerr<<"ny = "<<ny<<endl;
 
     size_t nxy = nx * ny;
     nb = 0.2 * nx;
@@ -429,8 +431,8 @@ int main(int argc, char *argv[])
     }
 
     // Allocate memory for dummy velocity model and seismogram
-    //float *h_dvpe = new float[nbxy];
-    //dummyVelField(nxb, nyb, nb, h_vpe, h_dvpe);
+    float *h_dvpe = new float[nbxy];
+    dummyVelField(nxb, nyb, nb, h_vpe, h_dvpe);
 
     cerr<<"vp = "<<_vp<<endl;
     cerr<<"nb = "<<nb<<endl;
@@ -504,14 +506,20 @@ int main(int argc, char *argv[])
 
     // ===================MODELING======================
     modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet);
-    //modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet);
+    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet);
     // =================================================
 
     //sf_file Fout=NULL;
     //Fout = sf_output("data");
-    //sf_putint(Fout,"n1",nxb);
     //sf_putint(Fout,"n2",nyb);
+    //sf_putint(Fout,"n1",nxb);
     //sf_floatwrite(h_dvpe, nbxy, Fout);
+
+    for(int i=0; i<nxb * nt; i++){
+        //cerr<<h_data[i]<<" ";
+        h_data[i] = h_data[i] - h_directwave[i];
+        //cerr<<h_data[i]<<endl;
+    }
 
     sf_file Fout=NULL;
     Fout = sf_output("data");
@@ -519,9 +527,14 @@ int main(int argc, char *argv[])
     sf_putint(Fout,"n2",nxb);
     sf_floatwrite(h_data, nxb * nt, Fout);
 
-    //FILE *fdata = fopen("oi.bin", "w");
+    sf_file Fout2=NULL;
+    Fout2 = sf_output("OD");
+    sf_putint(Fout2,"n1",nt);
+    sf_putint(Fout2,"n2",nxb);
+    sf_floatwrite(h_directwave, nxb * nt, Fout2);
 
-    //fwrite(h_data, sizeof(float), nxb * nt, fdata);
+    //FILE *fdata = fopen("oi.bin", "w");
+    //fwrite(h_vpe, sizeof(float), nxb * nyb, fdata);
     //fflush(stdout);
     //fclose(fdata);
 

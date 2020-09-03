@@ -23,5 +23,5 @@ for file in raw:
         screenht=3 wheretitle=t labelsz=4 titlesz=6 ''' % t)
 
 
-    Flow('oi','marmvel','../mod vel=${SOURCES[0]} data=${TARGETS[0]}',stdout=0)
+    Flow('data OD','marmvel','../mod nr=1000 isrc=0 jsrc=700 gxbeg=200 vel=${SOURCES[0]} data=${TARGETS[0]} OD=${TARGETS[1]}',stdout=0)
 End()

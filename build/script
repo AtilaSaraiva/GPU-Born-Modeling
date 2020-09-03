@@ -1,5 +1,6 @@
 rm --force snap/*
-rm oi.rsf
+rm data.rsf
+rm OD.rsf
 cd ..
 rm mod
 make
