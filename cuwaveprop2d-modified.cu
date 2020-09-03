@@ -146,7 +146,7 @@ __global__ void receptors(int it, int gxbeg, int gxend, float *d_u1, float *d_da
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if(gx < gxend + c_nb && gx > c_nb + gxbeg){
-        d_data[gx * c_nt + it] = d_u1[gx * c_ny + c_nb];
+        d_data[(gx - gxbeg) * c_nt + it] = d_u1[gx * c_ny + c_nb];
     }
 }
 
@@ -442,8 +442,8 @@ int main(int argc, char *argv[])
 
     // Data
     size_t dbytes = nxb * nt * sizeof(float);
-    float *h_data = new float[nxb * nt];
-    float *h_directwave = new float[nxb * nt];
+    float *h_data = new float[nr * nt];
+    float *h_directwave = new float[nr * nt];
 
     // Source
     float f0 = 10.0;                    /* source dominant frequency, Hz */
@@ -494,7 +494,7 @@ int main(int argc, char *argv[])
     sf_file Fout=NULL;
     Fout = sf_output("data");
     sf_putint(Fout,"n1",nt);
-    sf_putint(Fout,"n2",nxb);
+    sf_putint(Fout,"n2",nr);
     sf_floatwrite(h_data, nxb * nt, Fout);
 
     sf_file Fout2=NULL;
@@ -530,7 +530,7 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
     float dt2dx2 = (dt * dt) / (dx * dx);   /* const for fd stencil */
     size_t nbxy = nxb * nyb;
     size_t nbytes = nbxy * sizeof(float);/* bytes to store nx * ny */
-    size_t dbytes = nxb * nt * sizeof(float);
+    size_t dbytes = nr * nt * sizeof(float);
     size_t tbytes = nt * sizeof(float);
     int snap_step = round(0.1 * nt);   /* save snapshot every ... steps */
 
