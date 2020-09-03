@@ -141,12 +141,12 @@ __global__ void taper_gpu (float *d_tapermask, float *campo)
     }
 }
 
-__global__ void receptors(int it, int gxbeg, int gxend, float *d_u1, float *d_data)
+__global__ void receptors(int it, int nr, int gxbeg, float *d_u1, float *d_data)
 {
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(gx < gxend + c_nb && gx > c_nb + gxbeg){
-        d_data[(gx - gxbeg) * c_nt + it] = d_u1[gx * c_ny + c_nb];
+    if(gx < nr){
+        d_data[gx * c_nt + it] = d_u1[(gx + gxbeg + c_nb) * c_ny + c_nb];
     }
 }
 
@@ -487,7 +487,7 @@ int main(int argc, char *argv[])
     //sf_putint(Fout,"n2",nxb);
     //sf_floatwrite(h_vpe, nbxy, Fout);
 
-    for(int i=0; i<nxb * nt; i++){
+    for(int i=0; i<nr * nt; i++){
         h_data[i] = h_data[i] - h_directwave[i];
     }
 
@@ -495,7 +495,7 @@ int main(int argc, char *argv[])
     Fout = sf_output("data");
     sf_putint(Fout,"n1",nt);
     sf_putint(Fout,"n2",nr);
-    sf_floatwrite(h_data, nxb * nt, Fout);
+    sf_floatwrite(h_data, nr * nt, Fout);
 
     sf_file Fout2=NULL;
     Fout2 = sf_output("OD");
@@ -605,7 +605,7 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
         kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it);
         kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
         CHECK(cudaDeviceSynchronize());
-        receptors<<<(nxb + 32) / 32, 32>>>(it, gxbeg, gxend, d_u1, d_data);
+        receptors<<<(nr + 32) / 32, 32>>>(it, nr, gxbeg, d_u1, d_data);
         CHECK(cudaDeviceSynchronize());
 
         // Exchange time steps
@@ -632,6 +632,6 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
     CHECK(cudaFree(d_data));
     CHECK(cudaFree(d_vp));
     CHECK(cudaFree(d_wavelet));
-    printf("OK\n");
+    printf("OK saigo\n");
     CHECK(cudaDeviceReset());
 }
