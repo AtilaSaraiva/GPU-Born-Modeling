@@ -1,0 +1,15 @@
+3.1-git	sfspike	Artigos/GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation:	atila@JurosComposto	Thu Sep  3 15:43:53 2020
+
+	d2=10
+	o1=0
+	n2=700
+	o2=0
+	label1="Time"
+	data_format="native_float"
+	label2="Distance"
+	esize=4
+	in="/var/tmp/vel2.rsf@"
+	unit1="s"
+	unit2="km"
+	d1=10
+	n1=500

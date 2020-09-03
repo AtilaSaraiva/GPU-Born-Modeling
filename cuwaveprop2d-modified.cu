@@ -74,45 +74,34 @@ __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
 
 // Extend the velocity field
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet);
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps);
 
 void dummyVelField(int nxb, int nyb, int nb, float *h_vpe, float *h_dvpe)
 {
     for (int i = 0; i < nyb; i++){
         for (int j = 0; j < nxb; j++){
-            h_dvpe[i * nxb + j]  = h_vpe[i * nxb + nb];
+            h_dvpe[j * nyb + i]  = h_vpe[j * nyb + nb];
         }
     }
 }
 
-
-void extendVelField(int nx, int ny, int nb, float *h_vp, float *h_vpe)
+void expand(int nb, int nyb, int nxb, int nz, int nx, float *a, float *b)
+/*< expand domain of 'a' to 'b':  a, size=nz*nx; b, size=nyb*nxb;  >*/
 {
-    int nxb = nx + 2 * nb;
-    for(int j=nb; j<(nx+nb); j++){
-        for(int i=0; i<nb; i++){
-            h_vpe[i * nxb + j] = h_vp[j-nb];
-            h_vpe[(nb + ny + i) * nxb + j] = h_vp[(ny - 1) * nx + (j - nb)];
-        }
+    int iz,ix;
+    for     (ix=0;ix<nx;ix++) {
+	for (iz=0;iz<nz;iz++) {
+	    b[(nb+ix)*nyb+(nb+iz)] = a[ix*nz+iz];
+	}
     }
-    for(int i=nb; i<(ny+nb); i++){
-        for(int j=0; j<nb; j++){
-            h_vpe[i * nxb + j] = h_vp[(i - nb) * nx];
-            h_vpe[i * nxb + nb + nx + j] = h_vp[(i - nb) * nx + (nx - 1)];
-        }
+    for     (ix=0; ix<nxb; ix++) {
+        for (iz=0; iz<nb; iz++)   	b[ix*nyb+iz] = b[ix*nyb+nb];//top
+        for (iz=nz+nb; iz<nyb; iz++) b[ix*nyb+iz] = b[ix*nyb+nb+nz-1];//bottom
     }
-    for(int j=0; j<nb; j++){
-        for(int i=0; i<nb; i++){
-            h_vpe[i * nxb + j] = h_vp[0];
-            h_vpe[i * nxb + (j + nx + nb)] = h_vp[nx - 1];
-            h_vpe[(i + ny + nb) * nxb + j] = h_vp[(ny - 1) * nx];
-            h_vpe[(i + ny + nb) * nxb + (j + nx + nb)] = h_vp[ny * nx - 1];
-        }
-    }
-    for(int j=0; j<nx; j++){
-        for(int i=0; i<ny; i++){
-            h_vpe[(i + nb) * nxb + j + nb] = h_vp[i * nx + j];
-        }
+
+    for (iz=0; iz<nyb; iz++){
+        for(ix=0; ix<nb; ix++) 	b[ix*nyb+iz] = b[nb*nyb+iz];//left
+        for(ix=nb+nx; ix<nxb; ix++)	b[ix*nyb+iz] = b[(nb+nx-1)*nyb+iz];//right
     }
 }
 
@@ -129,33 +118,14 @@ void taper (int nx, int ny, int nb, float *abc, float *campo)
     int nyb = ny + 2 * nb;
     for(int j=0; j<nxb; j++){
         for(int i=0; i<nb; i++){
-            campo[i * nxb + j] *= abc[i];
-            campo[(nb + ny + i) * nxb + j] *= abc[nb - i - 1];
+            campo[j * nyb + i] *= abc[i];
+            campo[j * nyb + (nb + ny + i)] *= abc[nb - i - 1];
         }
     }
     for(int i=0; i<nyb; i++){
         for(int j=0; j<nb; j++){
-            campo[i * nxb + j] *= abc[j];
-            campo[i * nxb + nb + nx + j] *= abc[nb - j - 1];
-        }
-    }
-}
-
-__global__ void taper_gpu_serial (float *d_abc, float *campo)
-{
-    int nx = c_nx - 2 * c_nb;
-    int ny = c_ny - 2 * c_nb;
-
-    for(int j=0; j<c_nx; j++){
-        for(int i=0; i<c_nb; i++){
-            campo[i * c_nx + j] *= d_abc[i];
-            campo[(c_nb + ny + i) * c_nx + j] *= d_abc[c_nb - i - 1];
-        }
-    }
-    for(int i=0; i<c_ny; i++){
-        for(int j=0; j<c_nb; j++){
-            campo[i * c_nx + j] *= d_abc[j];
-            campo[i * c_nx + c_nb + nx + j] *= d_abc[c_nb - j - 1];
+            campo[j * nyb + i] *= abc[j];
+            campo[(nb + nx + j) * nyb + i] *= abc[nb - j - 1];
         }
     }
 }
@@ -164,7 +134,7 @@ __global__ void taper_gpu (float *d_tapermask, float *campo)
 {
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
-    unsigned int gid = gy * c_nx + gx;
+    unsigned int gid = gx * c_ny + gy;
 
     if(gid < c_nxy){
         campo[gid] *= d_tapermask[gid];
@@ -176,7 +146,7 @@ __global__ void receptors(int it, int gxbeg, int gxend, float *d_u1, float *d_da
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if(gx < gxend + c_nb && gx > c_nb + gxbeg){
-        d_data[gx * c_nt + it] = d_u1[c_nb * c_nx + gx];
+        d_data[gx * c_nt + it] = d_u1[gx * c_ny + c_nb];
     }
 }
 
@@ -231,7 +201,7 @@ __global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it)
     */
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
-    unsigned int idx = gy * c_nx + gx;
+    unsigned int idx = gx * c_ny + gy;
 
     if ((gx == c_jsrc + c_nb) && (gy == c_isrc + c_nb))
     {
@@ -250,7 +220,7 @@ __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, i
     */
 
     // Each thread copies one value from gmem into smem
-    shared[sy][sx] = global[gy * nx + gx];
+    shared[sy][sx] = global[gx * ny + gy];
 
     // Populate halo regions in smem for left, right, top and bottom boundaries of a block
     // if thread near LEFT border of a block
@@ -265,7 +235,7 @@ __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, i
         else
         {
             // if block left
-            shared[sy][sx - HALO] = global[gy * nx + gx - HALO];
+            shared[sy][sx - HALO] = global[(gx - HALO) * ny + gy];
         }
     }
     // if thread near RIGHT border of a block
@@ -280,7 +250,7 @@ __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, i
         else
         {
             // if block right
-            shared[sy][sx + HALO] = global[gy * nx + gx + HALO];
+            shared[sy][sx + HALO] = global[(gx + HALO) * ny + gy];
         }
     }
 
@@ -296,7 +266,7 @@ __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, i
         else
         {
             // if block bottom
-            shared[sy - HALO][sx] = global[(gy - HALO) * nx + gx];
+            shared[sy - HALO][sx] = global[gx * ny + gy - HALO];
         }
     }
 
@@ -312,7 +282,7 @@ __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, i
         else
         {
             // if block top
-            shared[sy + HALO][sx] = global[(gy + HALO) * nx + gx];
+            shared[sy + HALO][sx] = global[gx * ny + gy + HALO];
         }
     }
 }
@@ -340,7 +310,7 @@ __global__ void kernel_2dfd(float *d_u1, float *d_u2, float *d_vp)
     const unsigned int gy = blockIdx.y * blockDim.y + ty;
 
     // Global linear index
-    const unsigned int idx = gy * nx + gx;
+    const unsigned int idx = gx * ny + gy;
 
     // Allocate shared memory for a block (smem)
     __shared__ float s_u1[SDIMY][SDIMX];
@@ -407,8 +377,8 @@ int main(int argc, char *argv[])
     sf_axis ax,ay;
     int nx, ny, nb, nxb, nyb;
     float dx, dy;
-    ay = sf_iaxa(Fvel,2); ny = sf_n(ay); dy = sf_d(ay);
-    ax = sf_iaxa(Fvel,1); nx = sf_n(ax); dx = sf_d(ax);
+    ay = sf_iaxa(Fvel,1); ny = sf_n(ay); dy = sf_d(ay);
+    ax = sf_iaxa(Fvel,2); nx = sf_n(ax); dx = sf_d(ax);
     cerr<<"nx = "<<nx<<endl;
     cerr<<"ny = "<<ny<<endl;
 
@@ -422,7 +392,9 @@ int main(int argc, char *argv[])
     // Allocate memory for velocity model
     float *h_vp = new float[nxy]; sf_floatread(h_vp, nxy, Fvel);
     float *h_vpe = new float[nbxy];
-    extendVelField(nx, ny, nb, h_vp, h_vpe);
+    memset(h_vpe,0,nbytes);
+    //extendVelField(nx, ny, nb, h_vp, h_vpe);
+    expand(nb, nyb, nxb, ny, nx, h_vp, h_vpe);
     float _vp = h_vp[0];
     for(int i=1; i < nxy; i++){
         if(h_vp[i] > _vp){
@@ -447,9 +419,9 @@ int main(int argc, char *argv[])
     taper(nx, ny, nb, h_abc, h_tapermask);
 
     //sf_file Fout=NULL;
-    //Fout = sf_output("oi");
-    //sf_putint(Fout,"n1",nxb);
-    //sf_putint(Fout,"n2",nyb);
+    //Fout = sf_output("data");
+    //sf_putint(Fout,"n1",nyb);
+    //sf_putint(Fout,"n2",nxb);
     //sf_floatwrite(h_tapermask, nbxy, Fout);
 
     printf("MODEL:\n");
@@ -458,7 +430,7 @@ int main(int argc, char *argv[])
     printf("\t%f\t:h_vp[0]\n", h_vp[0]);
 
     // Time stepping
-    float t_total = 1.5;               /* total time of wave propagation, sec */
+    float t_total = 2.5;               /* total time of wave propagation, sec */
     float dt = 0.5 * dx / _vp;         /* time step assuming constant vp, sec */
     int nt = round(t_total / dt);      /* number of time steps */
     int snap_step = round(0.1 * nt);   /* save snapshot every ... steps */
@@ -505,20 +477,18 @@ int main(int argc, char *argv[])
     printf("\t%f\t:ppw\n",(float)_vp / (2*f0) / dx);
 
     // ===================MODELING======================
-    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet);
-    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet);
+    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet, true);
+    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet, false);
     // =================================================
 
     //sf_file Fout=NULL;
     //Fout = sf_output("data");
-    //sf_putint(Fout,"n2",nyb);
-    //sf_putint(Fout,"n1",nxb);
-    //sf_floatwrite(h_dvpe, nbxy, Fout);
+    //sf_putint(Fout,"n1",nyb);
+    //sf_putint(Fout,"n2",nxb);
+    //sf_floatwrite(h_vpe, nbxy, Fout);
 
     for(int i=0; i<nxb * nt; i++){
-        //cerr<<h_data[i]<<" ";
         h_data[i] = h_data[i] - h_directwave[i];
-        //cerr<<h_data[i]<<endl;
     }
 
     sf_file Fout=NULL;
@@ -551,7 +521,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet)
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps)
 {
 
     size_t nxy = nx * ny;
@@ -644,7 +614,7 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
         d_u2 = d_u3;
 
         // Save snapshot every snap_step iterations
-        if ((it % snap_step == 0))
+        if ((it % snap_step == 0) && snaps == true)
         {
             printf("%i/%i\n", it+1, nt);
             saveSnapshotIstep(it, d_u3, nxb, nyb,"u3");

@@ -6,5 +6,5 @@ mod: cuwaveprop2d-modified.cu
 	nvcc cuwaveprop2d-modified.cu $(LDFLAGS) -o mod
 
 run: mod
-	./mod nr=200 isrc=0 jsrc=250 gxbeg=150 vel=vel.rsf data=data.rsf OD=od.rsf
+	./mod nr=400 isrc=0 jsrc=350 gxbeg=150 vel=vel3.rsf data=data.rsf OD=od.rsf
 
