@@ -1,0 +1,8 @@
+rm --force snap/*
+rm data.rsf
+rm OD.rsf
+cd ..
+rm mod
+make
+cd -
+scons

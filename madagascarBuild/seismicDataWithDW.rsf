@@ -1,0 +1,7 @@
+3.1-git	mod	LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild:	atila@JurosComposto	Sat Sep  5 16:21:03 2020
+
+	n2=1000
+	data_format="native_float"
+	esize=4
+	in="/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild/seismicDataWithDW.rsf@"
+	n1=6875

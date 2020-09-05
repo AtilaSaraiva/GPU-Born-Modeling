@@ -13,3 +13,8 @@
 	unit2="km"
 	d1=10
 	n1=500
+3.1-git	sfadd	Artigos/GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation:	atila@JurosComposto	Thu Sep  3 15:53:34 2020
+
+	data_format="native_float"
+	esize=4
+	in="/var/tmp/vel3.rsf@"

@@ -1,1 +1,0 @@
-/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/build/marmvel.hh

@@ -1,7 +1,0 @@
-3.1-git	mod	Códigos/LSRTM_GPU_proj/FD-Seismic-data:	atila@JurosComposto	Fri Sep  4 17:48:35 2020
-
-	n2=400
-	data_format="native_float"
-	esize=4
-	in="/var/tmp/od.rsf@"
-	n1=2150

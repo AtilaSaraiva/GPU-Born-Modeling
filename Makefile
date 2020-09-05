@@ -6,5 +6,5 @@ mod: cuwaveprop2d-modified.cu
 	nvcc cuwaveprop2d-modified.cu $(LDFLAGS) -o mod
 
 run: mod
-	./mod nr=400 isrc=0 jsrc=350 gxbeg=150 vel=vel3.rsf data=data.rsf OD=od.rsf
+	./mod nr=400 isrc=0 jsrc=350 gxbeg=150 vel=vel.rsf data=seismicData.rsf OD=directWave.rsf comOD=seismicDataWithDirectWave.rsf
 
