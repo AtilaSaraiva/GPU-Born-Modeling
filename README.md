@@ -23,7 +23,7 @@ sfimage <seismicData.rsf
 to visualize it.
 
 
-This code uses the [Madagascar API][http://www.ahay.org/wiki/Main_Page] to read and write files so
+This code uses the [Madagascar API](http://www.ahay.org/wiki/Main_Page) to read and write files so
 it is required to have it installed and on your $PATH for this code to compile and run. If you want
 to run a SCons script using this code on the Marmousi velocity field, run:
 
