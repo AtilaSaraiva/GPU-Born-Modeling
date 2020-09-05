@@ -1,4 +1,3 @@
-
 __global__ void receptors(int it, int nr, int gxbeg, float *d_u1, float *d_data)
 {
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;

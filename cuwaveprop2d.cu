@@ -14,6 +14,7 @@ __constant__ int c_nxy;       /* total number of elements in the snap array (bor
 __constant__ int c_nb;        /* border size */
 __constant__ int c_nt;        /* time steps */
 __constant__ float c_dt2dx2;  /* dt2 / dx2 for fd*/
+
 __global__ void taper_gpu (float *d_tapermask, float *campo)
 {
     unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
