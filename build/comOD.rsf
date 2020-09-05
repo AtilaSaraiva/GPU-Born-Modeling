@@ -3,5 +3,5 @@
 	n2=1000
 	data_format="native_float"
 	esize=4
-	in="/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/build/OD.rsf@"
+	in="/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/build/comOD.rsf@"
 	n1=6875

@@ -1,1 +1,1 @@
-/var/tmp/GPU-codes/CUDA_FDTD_2D_acoustic_wave_propagation/build/marmvel.hh
+/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/build/marmvel.hh

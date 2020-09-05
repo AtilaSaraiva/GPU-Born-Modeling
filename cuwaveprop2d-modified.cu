@@ -487,6 +487,12 @@ int main(int argc, char *argv[])
     //sf_putint(Fout,"n2",nxb);
     //sf_floatwrite(h_vpe, nbxy, Fout);
 
+    sf_file Fout3=NULL;
+    Fout3 = sf_output("comOD");
+    sf_putint(Fout3,"n1",nt);
+    sf_putint(Fout3,"n2",nr);
+    sf_floatwrite(h_data, nr * nt, Fout3);
+
     for(int i=0; i<nr * nt; i++){
         h_data[i] = h_data[i] - h_directwave[i];
     }
@@ -500,8 +506,8 @@ int main(int argc, char *argv[])
     sf_file Fout2=NULL;
     Fout2 = sf_output("OD");
     sf_putint(Fout2,"n1",nt);
-    sf_putint(Fout2,"n2",nxb);
-    sf_floatwrite(h_directwave, nxb * nt, Fout2);
+    sf_putint(Fout2,"n2",nr);
+    sf_floatwrite(h_directwave, nr * nt, Fout2);
 
     //FILE *fdata = fopen("oi.bin", "w");
     //fwrite(h_vpe, sizeof(float), nxb * nyb, fdata);
