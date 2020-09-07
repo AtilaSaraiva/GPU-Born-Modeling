@@ -44,18 +44,18 @@ void expand(int nb, int nyb, int nxb, int nz, int nx, float *a, float *b)
 {
     int iz,ix;
     for     (ix=0;ix<nx;ix++) {
-	for (iz=0;iz<nz;iz++) {
-	    b[(nb+ix)*nyb+(nb+iz)] = a[ix*nz+iz];
-	}
+        for (iz=0;iz<nz;iz++) {
+            b[(nb+ix)*nyb+(nb+iz)] = a[ix*nz+iz];
+        }
     }
     for     (ix=0; ix<nxb; ix++) {
-        for (iz=0; iz<nb; iz++)   	b[ix*nyb+iz] = b[ix*nyb+nb];//top
+        for (iz=0; iz<nb; iz++)         b[ix*nyb+iz] = b[ix*nyb+nb];//top
         for (iz=nz+nb; iz<nyb; iz++) b[ix*nyb+iz] = b[ix*nyb+nb+nz-1];//bottom
     }
 
     for (iz=0; iz<nyb; iz++){
-        for(ix=0; ix<nb; ix++) 	b[ix*nyb+iz] = b[nb*nyb+iz];//left
-        for(ix=nb+nx; ix<nxb; ix++)	b[ix*nyb+iz] = b[(nb+nx-1)*nyb+iz];//right
+        for(ix=0; ix<nb; ix++)  b[ix*nyb+iz] = b[nb*nyb+iz];//left
+        for(ix=nb+nx; ix<nxb; ix++)     b[ix*nyb+iz] = b[(nb+nx-1)*nyb+iz];//right
     }
 }
 
