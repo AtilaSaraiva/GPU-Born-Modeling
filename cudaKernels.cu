@@ -8,7 +8,7 @@ __global__ void receptors(int it, int nr, int gxbeg, float *d_u1, float *d_data)
 }
 
 // Add source wavelet
-__global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it)
+__global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it, int jsrc, int isrc)
 {
     /*
     d_u             :pointer to an array on device where to add source term
@@ -19,7 +19,7 @@ __global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it)
     unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int idx = gx * c_ny + gy;
 
-    if ((gx == c_jsrc + c_nb) && (gy == c_isrc + c_nb))
+    if ((gx == jsrc + c_nb) && (gy == isrc + c_nb))
     {
         d_u[idx] += d_wavelet[it];
     }

@@ -1,13 +1,12 @@
-// Extend the velocity field
-
 #include <iostream>
+#include <rsf.hh>
 #include "cuda.h"
 #include "cuda_runtime.h"
 
+using namespace std;
+
 // Constant device memory
 __constant__ float c_coef[5]; /* coefficients for 8th order fd */
-__constant__ int c_isrc;      /* source location, ox */
-__constant__ int c_jsrc;      /* source location, oz */
 __constant__ int c_nx;        /* x dim */
 __constant__ int c_ny;        /* y dim */
 __constant__ int c_nr;        /* num of receivers */
@@ -92,9 +91,8 @@ void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag, int
 }
 
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps, int shot)
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_dvpe, float *h_tapermask, float *h_data, float *h_directwave, float * h_wavelet, bool snaps, int nshots, int incShots, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata)
 {
-
     size_t nxy = nx * ny;
     int nxb = nx + 2 * nb;
     int nyb = ny + 2 * nb;
@@ -107,13 +105,15 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
 
     // Allocate memory on device
     printf("Allocate and copy memory on the device...\n");
-    float *d_u1, *d_u2, *d_vp, *d_wavelet, *d_tapermask, *d_data;
+    float *d_u1, *d_u2, *d_vp, *d_wavelet, *d_tapermask, *d_data, *d_directwave, *d_dvp;
     CHECK(cudaMalloc((void **)&d_u1, nbytes))       /* wavefield at t-2 */
     CHECK(cudaMalloc((void **)&d_u2, nbytes))       /* wavefield at t-1 */
     CHECK(cudaMalloc((void **)&d_vp, nbytes))       /* velocity model */
+    CHECK(cudaMalloc((void **)&d_dvp, nbytes))       /* velocity model */
     CHECK(cudaMalloc((void **)&d_wavelet, tbytes)); /* source term for each time step */
     CHECK(cudaMalloc((void **)&d_tapermask, nbytes));
     CHECK(cudaMalloc((void **)&d_data, dbytes));
+    CHECK(cudaMalloc((void **)&d_directwave, dbytes));
 
     // Fill allocated memory with a value
     CHECK(cudaMemset(d_u1, 0, nbytes))
@@ -122,14 +122,13 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
 
     // Copy arrays from host to device
     CHECK(cudaMemcpy(d_vp, h_vpe, nbytes, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_dvp, h_dvpe, nbytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_tapermask, h_tapermask, nbytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_wavelet, h_wavelet, tbytes, cudaMemcpyHostToDevice));
 
     // Copy constants to device constant memory
     float coef[] = {a0, a1, a2, a3, a4};
     CHECK(cudaMemcpyToSymbol(c_coef, coef, 5 * sizeof(float)));
-    CHECK(cudaMemcpyToSymbol(c_isrc, &isrc, sizeof(int)));
-    CHECK(cudaMemcpyToSymbol(c_jsrc, &jsrc, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nx, &nxb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_ny, &nyb, sizeof(int)));
     CHECK(cudaMemcpyToSymbol(c_nr, &nr, sizeof(int)));
@@ -141,17 +140,17 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
     printf("OK\n");
 
     // Print out specs of the main GPU
-    cudaDeviceProp deviceProp;
-    CHECK(cudaGetDeviceProperties(&deviceProp, 0));
-    printf("GPU0:\t%s\t%d.%d:\n", deviceProp.name, deviceProp.major, deviceProp.minor);
-    printf("\t%lu GB:\t total Global memory (gmem)\n", deviceProp.totalGlobalMem / 1024 / 1024 / 1000);
-    printf("\t%lu MB:\t total Constant memory (cmem)\n", deviceProp.totalConstMem / 1024);
-    printf("\t%lu MB:\t total Shared memory per block (smem)\n", deviceProp.sharedMemPerBlock / 1024);
-    printf("\t%d:\t total threads per block\n", deviceProp.maxThreadsPerBlock);
-    printf("\t%d:\t total registers per block\n", deviceProp.regsPerBlock);
-    printf("\t%d:\t warp size\n", deviceProp.warpSize);
-    printf("\t%d x %d x %d:\t max dims of block\n", deviceProp.maxThreadsDim[0], deviceProp.maxThreadsDim[1], deviceProp.maxThreadsDim[2]);
-    printf("\t%d x %d x %d:\t max dims of grid\n", deviceProp.maxGridSize[0], deviceProp.maxGridSize[1], deviceProp.maxGridSize[2]);
+    //cudaDeviceProp deviceProp;
+    //CHECK(cudaGetDeviceProperties(&deviceProp, 0));
+    //printf("GPU0:\t%s\t%d.%d:\n", deviceProp.name, deviceProp.major, deviceProp.minor);
+    //printf("\t%lu GB:\t total Global memory (gmem)\n", deviceProp.totalGlobalMem / 1024 / 1024 / 1000);
+    //printf("\t%lu MB:\t total Constant memory (cmem)\n", deviceProp.totalConstMem / 1024);
+    //printf("\t%lu MB:\t total Shared memory per block (smem)\n", deviceProp.sharedMemPerBlock / 1024);
+    //printf("\t%d:\t total threads per block\n", deviceProp.maxThreadsPerBlock);
+    //printf("\t%d:\t total registers per block\n", deviceProp.regsPerBlock);
+    //printf("\t%d:\t warp size\n", deviceProp.warpSize);
+    //printf("\t%d x %d x %d:\t max dims of block\n", deviceProp.maxThreadsDim[0], deviceProp.maxThreadsDim[1], deviceProp.maxThreadsDim[2]);
+    //printf("\t%d x %d x %d:\t max dims of grid\n", deviceProp.maxGridSize[0], deviceProp.maxGridSize[1], deviceProp.maxGridSize[2]);
     CHECK(cudaSetDevice(0));
 
     // Print out CUDA domain partitioning info
@@ -166,36 +165,87 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
     dim3 grid((nxb + block.x - 1) / block.x, (nyb + block.y - 1) / block.y);
 
     // MAIN LOOP
-    printf("Time loop...\n");
-    for (int it = 0; it < nt; it++)
-    {
-        taper_gpu<<<grid,block>>>(d_tapermask, d_u1);
-        taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
+    for(int shot=0; shot<nshots; shot++){
+        cerr<<"\nShot "<<shot<<" gxbeg = "<<gxbeg<<", jsrc = "<<jsrc<<", isrc = "<<isrc<<
+            ", incShots = "<<incShots<<"\n"<<endl;
 
-        // These kernels are in the same stream so they will be executed one by one
-        kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it);
-        kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
-        CHECK(cudaDeviceSynchronize());
-        receptors<<<(nr + 32) / 32, 32>>>(it, nr, gxbeg, d_u1, d_data);
-        CHECK(cudaDeviceSynchronize());
+        CHECK(cudaMemset(d_u1, 0, nbytes))
+        CHECK(cudaMemset(d_u2, 0, nbytes))
 
-        // Exchange time steps
-        float *d_u3 = d_u1;
-        d_u1 = d_u2;
-        d_u2 = d_u3;
-
-        // Save snapshot every snap_step iterations
-        if ((it % snap_step == 0) && snaps == true)
+        printf("Time loop...\n");
+        for (int it = 0; it < nt; it++)
         {
-            printf("%i/%i\n", it+1, nt);
-            saveSnapshotIstep(it, d_u3, nxb, nyb, "u3", shot);
+            taper_gpu<<<grid,block>>>(d_tapermask, d_u1);
+            taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
+
+            // These kernels are in the same stream so they will be executed one by one
+            kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it, jsrc, isrc);
+            kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
+            //CHECK(cudaDeviceSynchronize());
+            receptors<<<(nr + 32) / 32, 32>>>(it, nr, gxbeg, d_u1, d_data);
+
+            // Exchange time steps
+            float *d_u3 = d_u1;
+            d_u1 = d_u2;
+            d_u2 = d_u3;
+
+            // Save snapshot every snap_step iterations
+            if ((it % snap_step == 0) && snaps == true)
+            {
+                printf("%i/%i\n", it+1, nt);
+                saveSnapshotIstep(it, d_u3, nxb, nyb, "u3", shot);
+            }
         }
+
+        CHECK(cudaMemset(d_u1, 0, nbytes))
+        CHECK(cudaMemset(d_u2, 0, nbytes))
+
+        for (int it = 0; it < nt; it++)
+        {
+            taper_gpu<<<grid,block>>>(d_tapermask, d_u1);
+            taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
+
+            // These kernels are in the same stream so they will be executed one by one
+            kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it, jsrc, isrc);
+            kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_dvp);
+            //CHECK(cudaDeviceSynchronize());
+            receptors<<<(nr + 32) / 32, 32>>>(it, nr, gxbeg, d_u1, d_directwave);
+
+            // Exchange time steps
+            float *d_u3 = d_u1;
+            d_u1 = d_u2;
+            d_u2 = d_u3;
+
+            // Save snapshot every snap_step iterations
+            if ((it % snap_step == 0) && snaps == true)
+            {
+                printf("%i/%i\n", it+1, nt);
+                saveSnapshotIstep(it, d_u3, nxb, nyb, "u3", shot);
+            }
+        }
+
+        CHECK(cudaMemcpy(h_data, d_data, dbytes, cudaMemcpyDeviceToHost));
+        CHECK(cudaMemcpy(h_directwave, d_directwave, dbytes, cudaMemcpyDeviceToHost));
+
+        sf_floatwrite(h_data, nr * nt, Fdata_directWave);
+
+        for(int i=0; i<nr * nt; i++){
+            h_data[i] = h_data[i] - h_directwave[i];
+        }
+
+        sf_floatwrite(h_data, nr * nt, Fdata);
+
+        sf_floatwrite(h_directwave, nr * nt, Fonly_directWave);
+
+        gxbeg += incShots;
+        jsrc += incShots;
     }
+
+
     printf("OK\n");
 
     CHECK(cudaGetLastError());
 
-    CHECK(cudaMemcpy(h_data, d_data, dbytes, cudaMemcpyDeviceToHost));
 
     CHECK(cudaFree(d_u1));
     CHECK(cudaFree(d_u2));

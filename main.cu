@@ -26,7 +26,7 @@ Add this to c_cpp_properties.json if linting isn't working for CUDA libraries
 
 using namespace std;
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps, int shot);
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_dvpe, float *h_tapermask, float *h_data, float *h_directwave, float * h_wavelet, bool snaps, int nshots, int incShots, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata);
 
 void dummyVelField(int nxb, int nyb, int nb, float *h_vpe, float *h_dvpe)
 {
@@ -214,11 +214,11 @@ int main(int argc, char *argv[])
     printf("\t%f\t:ppw\n",(float)_vp / (2*f0) / dx);
 
 
-    sf_file Fdata_directwave=NULL;
-    Fdata_directwave = sf_output("comOD");
-    sf_putint(Fdata_directwave,"n1",nt);
-    sf_putint(Fdata_directwave,"n2",nr);
-    sf_putint(Fdata_directwave,"n3",nshots);
+    sf_file Fdata_directWave=NULL;
+    Fdata_directWave = sf_output("comOD");
+    sf_putint(Fdata_directWave,"n1",nt);
+    sf_putint(Fdata_directWave,"n2",nr);
+    sf_putint(Fdata_directWave,"n3",nshots);
 
     sf_file Fdata=NULL;
     Fdata = sf_output("data");
@@ -232,33 +232,11 @@ int main(int argc, char *argv[])
     sf_putint(Fonly_directWave,"n2",nr);
     sf_putint(Fonly_directWave,"n3",nshots);
 
-    for(int i=0; i<nshots; i++){
-        cerr<<"\nShot "<<i<<" gxbeg = "<<gxbeg<<", jsrc = "<<jsrc<<", isrc = "<<isrc<<
-            ", incShots = "<<incShots<<"\n"<<endl;
 
-        // ===================MODELING======================
-        modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet, true, i);
-        modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet, false, i);
-        // =================================================
+    // ===================MODELING======================
+    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_dvpe, h_tapermask, h_data, h_directwave,  h_wavelet, false, nshots, incShots, Fonly_directWave, Fdata_directWave, Fdata);
+    // =================================================
 
-        sf_floatwrite(h_data, nr * nt, Fdata_directwave);
-
-        for(int i=0; i<nr * nt; i++){
-            h_data[i] = h_data[i] - h_directwave[i];
-        }
-
-        sf_floatwrite(h_data, nr * nt, Fdata);
-
-        sf_floatwrite(h_directwave, nr * nt, Fonly_directWave);
-
-        gxbeg += incShots;
-        jsrc += incShots;
-    }
-
-    //FILE *fdata = fopen("oi.bin", "w");
-    //fwrite(h_vpe, sizeof(float), nxb * nyb, fdata);
-    //fflush(stdout);
-    //fclose(fdata);
 
     printf("Clean memory...");
     delete[] h_vp;

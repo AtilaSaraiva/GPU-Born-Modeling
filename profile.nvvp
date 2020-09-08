@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<session version="2" name="profile.nvvp" hscale="1.0E-6" normalize="false">
+<timelineoptions enabletimerange="false" start="-1" end="-1" numsegmentsuvm="100" uvmisegmentenabled="true"/>
+<executable file="/home/atila/Dropbox/Projetos/mestrado/C&#243;digos/LSRTM_GPU_proj/FD-Seismic-data/mod" cwd="/home/atila/Dropbox/Projetos/mestrado/C&#243;digos/LSRTM_GPU_proj/FD-Seismic-data" args="nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 vel=testData/vel.rsf data=testData/seismicData.rsf OD=testData/directwave.rsf comOD=testData/seismicDataWithDirectWave.rsf" profileonstart="true" concurrentkernels="true" apitrace="true" environmentprofiling="false" uvmprofiling="true" cpuprofiling="false" allocationsTracking="false" openaccprofiling="true" openmpprofiling="false" threadtracking="false" devicebuffersize="8" cdpbuffersize="8"><envs></envs><multiProcess type="0" rumMPS="false"/></executable>
+<expert><columnprops></columnprops>
+</expert>
+<analysis guided="true"><visitedstages><stage name="TIMELINE"/></visitedstages></analysis>
+<expertsystem current="INTRO"><visited><stage name="INTRO"/></visited></expertsystem>
+<vruler width="200"/>
+<hruler>
+</hruler>
+</session>
