@@ -23,5 +23,5 @@ for file in raw:
         screenht=3 wheretitle=t labelsz=4 titlesz=6 ''' % t)
 
 
-    Flow('seismicData directWave seismicDataWithDW','marmvel','../mod nr=1000 isrc=0 jsrc=700 gxbeg=200 comOD=${TARGETS[2]} vel=${SOURCES[0]} data=${TARGETS[0]} OD=${TARGETS[1]}',stdout=0)
+    Flow('seismicData directWave seismicDataWithDW','marmvel','../mod incShots=100 nshots=17 nr=600 isrc=0 jsrc=300 gxbeg=0 comOD=${TARGETS[2]} vel=${SOURCES[0]} data=${TARGETS[0]} OD=${TARGETS[1]}',stdout=0)
 End()

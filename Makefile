@@ -9,9 +9,13 @@ comOD=seismicDataWithDirectWave.rsf
 vel=vel.rsf
 
 
-mod: main.cu
+mod: main.cu cuwaveprop2d.cu cudaKernels.cu
 	nvcc main.cu $(LDFLAGS) -o mod
 
 run: mod
-	./mod nr=400 isrc=0 jsrc=350 gxbeg=150 vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
+	./mod nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
+	#sfimage <$(dFold)/$(data)
+	sfgrey <$(dFold)/$(data) | sfpen &
+	#ximage n1=780 <snap/snap_u3_s0_0_780_980 &
+	#ximage n1=780 <snap/snap_u3_s1_0_780_980 &
 

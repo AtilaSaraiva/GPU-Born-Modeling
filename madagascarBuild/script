@@ -1,6 +1,5 @@
 rm --force snap/*
-rm data.rsf
-rm OD.rsf
+rm seismicData.rsf
 cd ..
 rm mod
 make

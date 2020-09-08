@@ -24,11 +24,9 @@ Add this to c_cpp_properties.json if linting isn't working for CUDA libraries
 
 #include "cuwaveprop2d.cu"
 
-
-
 using namespace std;
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps);
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps, int shot);
 
 void dummyVelField(int nxb, int nyb, int nb, float *h_vpe, float *h_dvpe)
 {
@@ -62,7 +60,7 @@ void expand(int nb, int nyb, int nxb, int nz, int nx, float *a, float *b)
 void abc_coef (int nb, float *abc)
 {
     for(int i=0; i<nb; i++){
-        abc[i] = exp (-pow(0.008 * (nb - i + 1),2.0));
+        abc[i] = exp (-pow(0.001 * (nb - i + 1),2.0));
     }
 }
 
@@ -110,6 +108,8 @@ int main(int argc, char *argv[])
     int isrc; sf_getint("isrc",&isrc);
     int jsrc; sf_getint("jsrc",&jsrc);
     int gxbeg; sf_getint("gxbeg",&gxbeg);
+    int nshots; sf_getint("nshots",&nshots);
+    int incShots; sf_getint("incShots",&incShots);
     int gxend = gxbeg + nr;
 
     // R/W axes
@@ -157,11 +157,11 @@ int main(int argc, char *argv[])
     abc_coef(nb, h_abc);
     taper(nx, ny, nb, h_abc, h_tapermask);
 
-    //sf_file Fout=NULL;
-    //Fout = sf_output("data");
-    //sf_putint(Fout,"n1",nyb);
-    //sf_putint(Fout,"n2",nxb);
-    //sf_floatwrite(h_tapermask, nbxy, Fout);
+    //sf_file Fdata=NULL;
+    //Fdata = sf_output("data");
+    //sf_putint(Fdata,"n1",nyb);
+    //sf_putint(Fdata,"n2",nxb);
+    //sf_floatwrite(h_tapermask, nbxy, Fdata);
 
     printf("MODEL:\n");
     printf("\t%i x %i\t:ny x nx\n", ny, nx);
@@ -187,8 +187,6 @@ int main(int argc, char *argv[])
     // Source
     float f0 = 10.0;                    /* source dominant frequency, Hz */
     float t0 = 1.2 / f0;                /* source padding to move wavelet from left of zero */
-    //int isrc = round((float)nx / 2);    [> source location, ox <]
-    //int jsrc = round((float)ny / 2);    [> source location, oz <]
 
     float *h_wavelet, *h_time;
     float tbytes = nt * sizeof(float);
@@ -215,38 +213,47 @@ int main(int argc, char *argv[])
     printf("\t%f\t:min wavelength [m]\n",(float)_vp / (2*f0));
     printf("\t%f\t:ppw\n",(float)_vp / (2*f0) / dx);
 
-    // ===================MODELING======================
-    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet, true);
-    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet, false);
-    // =================================================
 
-    //sf_file Fout=NULL;
-    //Fout = sf_output("data");
-    //sf_putint(Fout,"n1",nyb);
-    //sf_putint(Fout,"n2",nxb);
-    //sf_floatwrite(h_vpe, nbxy, Fout);
+    sf_file Fdata_directwave=NULL;
+    Fdata_directwave = sf_output("comOD");
+    sf_putint(Fdata_directwave,"n1",nt);
+    sf_putint(Fdata_directwave,"n2",nr);
+    sf_putint(Fdata_directwave,"n3",nshots);
 
-    sf_file Fout3=NULL;
-    Fout3 = sf_output("comOD");
-    sf_putint(Fout3,"n1",nt);
-    sf_putint(Fout3,"n2",nr);
-    sf_floatwrite(h_data, nr * nt, Fout3);
+    sf_file Fdata=NULL;
+    Fdata = sf_output("data");
+    sf_putint(Fdata,"n1",nt);
+    sf_putint(Fdata,"n2",nr);
+    sf_putint(Fdata,"n3",nshots);
 
-    for(int i=0; i<nr * nt; i++){
-        h_data[i] = h_data[i] - h_directwave[i];
+    sf_file Fonly_directWave=NULL;
+    Fonly_directWave = sf_output("OD");
+    sf_putint(Fonly_directWave,"n1",nt);
+    sf_putint(Fonly_directWave,"n2",nr);
+    sf_putint(Fonly_directWave,"n3",nshots);
+
+    for(int i=0; i<nshots; i++){
+        cerr<<"\nShot "<<i<<" gxbeg = "<<gxbeg<<", jsrc = "<<jsrc<<", isrc = "<<isrc<<
+            ", incShots = "<<incShots<<"\n"<<endl;
+
+        // ===================MODELING======================
+        modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_tapermask, h_data, h_wavelet, true, i);
+        modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_dvpe, h_tapermask, h_directwave, h_wavelet, false, i);
+        // =================================================
+
+        sf_floatwrite(h_data, nr * nt, Fdata_directwave);
+
+        for(int i=0; i<nr * nt; i++){
+            h_data[i] = h_data[i] - h_directwave[i];
+        }
+
+        sf_floatwrite(h_data, nr * nt, Fdata);
+
+        sf_floatwrite(h_directwave, nr * nt, Fonly_directWave);
+
+        gxbeg += incShots;
+        jsrc += incShots;
     }
-
-    sf_file Fout=NULL;
-    Fout = sf_output("data");
-    sf_putint(Fout,"n1",nt);
-    sf_putint(Fout,"n2",nr);
-    sf_floatwrite(h_data, nr * nt, Fout);
-
-    sf_file Fout2=NULL;
-    Fout2 = sf_output("OD");
-    sf_putint(Fout2,"n1",nt);
-    sf_putint(Fout2,"n2",nr);
-    sf_floatwrite(h_directwave, nr * nt, Fout2);
 
     //FILE *fdata = fopen("oi.bin", "w");
     //fwrite(h_vpe, sizeof(float), nxb * nyb, fdata);

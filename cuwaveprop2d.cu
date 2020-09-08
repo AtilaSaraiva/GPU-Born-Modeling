@@ -1,5 +1,6 @@
 // Extend the velocity field
 
+#include <iostream>
 #include "cuda.h"
 #include "cuda_runtime.h"
 
@@ -62,7 +63,7 @@ __global__ void taper_gpu (float *d_tapermask, float *campo)
 #include "cudaKernels.cu"
 
 // Save snapshot as a binary, filename snap/snap_tag_it_ny_nx
-void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
+void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag, int shot)
 {
     /*
     it      :timestep id
@@ -77,7 +78,7 @@ void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
     CHECK(cudaMemcpy(iwave, data, isize, cudaMemcpyDeviceToHost));
 
     char fname[32];
-    sprintf(fname, "snap/snap_%s_%i_%i_%i", tag, it, ny, nx);
+    sprintf(fname, "snap/snap_%s_s%i_%i_%i_%i", tag, shot, it, ny, nx);
 
     FILE *fp_snap = fopen(fname, "w");
 
@@ -91,7 +92,7 @@ void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag)
 }
 
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps)
+void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_tapermask, float *h_data, float * h_wavelet, bool snaps, int shot)
 {
 
     size_t nxy = nx * ny;
@@ -187,7 +188,7 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
         if ((it % snap_step == 0) && snaps == true)
         {
             printf("%i/%i\n", it+1, nt);
-            saveSnapshotIstep(it, d_u3, nxb, nyb,"u3");
+            saveSnapshotIstep(it, d_u3, nxb, nyb, "u3", shot);
         }
     }
     printf("OK\n");
