@@ -102,38 +102,43 @@ sf_file createFile3D (const char *name, int dimensions[3], float spacings[3], in
 
 typedef struct{
     int nShots;
-    int srcPos[2];
+    int srcPosX;
+    int srcPosY;
     int firstReceptorPos;
     int nReceptors;
     int lastReceptorPos;
     int incShots;
-    int modelDims[2];
-    int spacings[2];
+    int modelNx;
+    int modelNy;
+    int modelDx;
+    int modelDy;
+    int taperBorder;
 } geometry;
 
 geometry getParameters(sf_file FvelModel)
 {
-    geometry parameters;
-    sf_getint("nr",&parameters.nReceptors);
-    sf_getint("isrc",&parameters.srcPos[1]);
-    sf_getint("jsrc",&parameters.srcPos[0]);
-    sf_getint("gxbeg",&parameters.firstReceptorPos);
-    sf_getint("nshots",&parameters.nShots);
-    sf_getint("incShots",&parameters.incShots);
-    sf_histint(FvelModel, "n1",&parameters.modelDims[0]);
-    sf_histint(FvelModel, "n2", &parameters.modelDims[1]);
-    parameters.lastReceptorPos = parameters.firstReceptorPos + parameters.nReceptors;
-    return parameters;
+    geometry param;
+    sf_getint("nr",&param.nReceptors);
+    sf_getint("isrc",&param.srcPosY);
+    sf_getint("jsrc",&param.srcPosX);
+    sf_getint("gxbeg",&param.firstReceptorPos);
+    sf_getint("nshots",&param.nShots);
+    sf_getint("incShots",&param.incShots);
+    sf_histint(FvelModel, "n1",&param.modelNy);
+    sf_histint(FvelModel, "n2", &param.modelNx);
+    param.lastReceptorPos = param.firstReceptorPos + param.nReceptors;
+    param.taperBorder = 0.2 * param.modelNx;
+    return param;
 }
 
 void test_getParameters (geometry parameters)
 {
-    cerr<<"parameters.incShots: "<<parameters.incShots<<endl;
-    cerr<<"parameters.modelDims[0] "<<parameters.modelDims[0]<<parameters.modelDims[1]<<endl;
-    cerr<<"parameters.nShots "<<parameters.nShots<<endl;
-    cerr<<"parameters.nReceptors "<<parameters.nReceptors<<endl;
-    cerr<<"parameters.firstReceptorPos "<<parameters.firstReceptorPos<<endl;
-    cerr<<"parameters.lastReceptorPos "<<parameters.lastReceptorPos<<endl;
+    cerr<<"param.incShots: "<<param.incShots<<endl;
+    cerr<<"param.modelDims[0] "<<param.modelNx<<param.modelNy<<endl;
+    cerr<<"param.nShots "<<param.nShots<<endl;
+    cerr<<"param.nReceptors "<<param.nReceptors<<endl;
+    cerr<<"param.firstReceptorPos "<<param.firstReceptorPos<<endl;
+    cerr<<"param.lastReceptorPos "<<param.lastReceptorPos<<endl;
 }
 
 
