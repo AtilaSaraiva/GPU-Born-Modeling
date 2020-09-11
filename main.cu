@@ -10,6 +10,7 @@ vladimir.kazei@kaust.edu.sa
 
 #include <rsf.hh>
 #include <iostream>
+#include <string>
 #include "stdio.h"
 #include "math.h"
 #include "stdlib.h"
@@ -82,6 +83,59 @@ void taper (int nx, int ny, int nb, float *abc, float *campo)
     }
 }
 
+sf_file createFile3D (const char *name, int dimensions[3], float spacings[3], int origins[3])
+{
+    sf_file Fdata = NULL;
+    Fdata = sf_output(name);
+    char key_n[6],key_d[6],key_o[6];
+    for (int i = 0; i < 3; i++){
+        sprintf(key_n,"n%i",i+1);
+        sprintf(key_d,"d%i",i+1);
+        sprintf(key_o,"o%i",i+1);
+        sf_putint(Fdata,key_n,dimensions[i]);
+        sf_putint(Fdata,key_d,spacings[i]);
+        sf_putint(Fdata,key_o,origins[i]);
+    }
+
+    return Fdata;
+}
+
+typedef struct{
+    int nShots;
+    int srcPos[2];
+    int firstReceptorPos;
+    int nReceptors;
+    int lastReceptorPos;
+    int incShots;
+    int modelDims[2];
+    int spacings[2];
+} geometry;
+
+geometry getParameters(sf_file FvelModel)
+{
+    geometry parameters;
+    sf_getint("nr",&parameters.nReceptors);
+    sf_getint("isrc",&parameters.srcPos[1]);
+    sf_getint("jsrc",&parameters.srcPos[0]);
+    sf_getint("gxbeg",&parameters.firstReceptorPos);
+    sf_getint("nshots",&parameters.nShots);
+    sf_getint("incShots",&parameters.incShots);
+    sf_histint(FvelModel, "n1",&parameters.modelDims[0]);
+    sf_histint(FvelModel, "n2", &parameters.modelDims[1]);
+    parameters.lastReceptorPos = parameters.firstReceptorPos + parameters.nReceptors;
+    return parameters;
+}
+
+void test_getParameters (geometry parameters)
+{
+    cerr<<"parameters.incShots: "<<parameters.incShots<<endl;
+    cerr<<"parameters.modelDims[0] "<<parameters.modelDims[0]<<parameters.modelDims[1]<<endl;
+    cerr<<"parameters.nShots "<<parameters.nShots<<endl;
+    cerr<<"parameters.nReceptors "<<parameters.nReceptors<<endl;
+    cerr<<"parameters.firstReceptorPos "<<parameters.firstReceptorPos<<endl;
+    cerr<<"parameters.lastReceptorPos "<<parameters.lastReceptorPos<<endl;
+}
+
 
 /*
 ===================================================================================
@@ -100,10 +154,6 @@ int main(int argc, char *argv[])
     Fvel = sf_input("vel");
 
     // Getting command line parameters
-    //sf_getint('sz',sz);
-    //sf_getint('jsx',jsx);
-    //sf_getint('gzbeg',gzbeg);
-    //sf_getint('jgx',jgx);
     int nr; sf_getint("nr",&nr);
     int isrc; sf_getint("isrc",&isrc);
     int jsrc; sf_getint("jsrc",&jsrc);
@@ -111,6 +161,8 @@ int main(int argc, char *argv[])
     int nshots; sf_getint("nshots",&nshots);
     int incShots; sf_getint("incShots",&incShots);
     int gxend = gxbeg + nr;
+
+    geometry parameters = getParameters(Fvel);
 
     // R/W axes
     sf_axis ax,ay;
@@ -141,6 +193,12 @@ int main(int argc, char *argv[])
         }
     }
 
+    printf("MODEL:\n");
+    printf("\t%i x %i\t:ny x nx\n", ny, nx);
+    printf("\t%f\t:dx\n", dx);
+    printf("\t%f\t:h_vp[0]\n", h_vp[0]);
+
+
     // Allocate memory for dummy velocity model and seismogram
     float *h_dvpe = new float[nbxy];
     dummyVelField(nxb, nyb, nb, h_vpe, h_dvpe);
@@ -157,16 +215,6 @@ int main(int argc, char *argv[])
     abc_coef(nb, h_abc);
     taper(nx, ny, nb, h_abc, h_tapermask);
 
-    //sf_file Fdata=NULL;
-    //Fdata = sf_output("data");
-    //sf_putint(Fdata,"n1",nyb);
-    //sf_putint(Fdata,"n2",nxb);
-    //sf_floatwrite(h_tapermask, nbxy, Fdata);
-
-    printf("MODEL:\n");
-    printf("\t%i x %i\t:ny x nx\n", ny, nx);
-    printf("\t%f\t:dx\n", dx);
-    printf("\t%f\t:h_vp[0]\n", h_vp[0]);
 
     // Time stepping
     float t_total = 2.5;               /* total time of wave propagation, sec */
@@ -180,7 +228,6 @@ int main(int argc, char *argv[])
     printf("\t%i\t:nt\n", nt);
 
     // Data
-    size_t dbytes = nxb * nt * sizeof(float);
     float *h_data = new float[nr * nt];
     float *h_directwave = new float[nr * nt];
 
@@ -213,25 +260,14 @@ int main(int argc, char *argv[])
     printf("\t%f\t:min wavelength [m]\n",(float)_vp / (2*f0));
     printf("\t%f\t:ppw\n",(float)_vp / (2*f0) / dx);
 
+    // Set Output files
 
-    sf_file Fdata_directWave=NULL;
-    Fdata_directWave = sf_output("comOD");
-    sf_putint(Fdata_directWave,"n1",nt);
-    sf_putint(Fdata_directWave,"n2",nr);
-    sf_putint(Fdata_directWave,"n3",nshots);
-
-    sf_file Fdata=NULL;
-    Fdata = sf_output("data");
-    sf_putint(Fdata,"n1",nt);
-    sf_putint(Fdata,"n2",nr);
-    sf_putint(Fdata,"n3",nshots);
-
-    sf_file Fonly_directWave=NULL;
-    Fonly_directWave = sf_output("OD");
-    sf_putint(Fonly_directWave,"n1",nt);
-    sf_putint(Fonly_directWave,"n2",nr);
-    sf_putint(Fonly_directWave,"n3",nshots);
-
+    int dimensions[3] = {nt,nr,nshots};
+    float spacings[3] = {1,1,1};
+    int origins[3] = {0,0,0};
+    sf_file Fdata_directWave = createFile3D("comOD",dimensions,spacings,origins);
+    sf_file Fonly_directWave = createFile3D("OD",dimensions,spacings,origins);
+    sf_file Fdata = createFile3D("data",dimensions,spacings,origins);
 
     // ===================MODELING======================
     modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_dvpe, h_tapermask, h_data, h_directwave,  h_wavelet, false, nshots, incShots, Fonly_directWave, Fdata_directWave, Fdata);
@@ -241,7 +277,9 @@ int main(int argc, char *argv[])
     printf("Clean memory...");
     delete[] h_vp;
     delete[] h_vpe;
+    delete[] h_dvpe;
     delete[] h_data;
+    delete[] h_directwave;
     delete[] h_abc;
     delete[] h_tapermask;
     delete[] h_time;

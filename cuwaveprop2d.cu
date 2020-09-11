@@ -93,7 +93,6 @@ void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag, int
 
 void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_dvpe, float *h_tapermask, float *h_data, float *h_directwave, float * h_wavelet, bool snaps, int nshots, int incShots, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata)
 {
-    size_t nxy = nx * ny;
     int nxb = nx + 2 * nb;
     int nyb = ny + 2 * nb;
     float dt2dx2 = (dt * dt) / (dx * dx);   /* const for fd stencil */
@@ -251,7 +250,9 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
     CHECK(cudaFree(d_u2));
     CHECK(cudaFree(d_tapermask));
     CHECK(cudaFree(d_data));
+    CHECK(cudaFree(d_directwave));
     CHECK(cudaFree(d_vp));
+    CHECK(cudaFree(d_dvp));
     CHECK(cudaFree(d_wavelet));
     printf("OK saigo\n");
     CHECK(cudaDeviceReset());
