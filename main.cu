@@ -51,7 +51,6 @@ void expand(int nb, int nyb, int nxb, int nz, int nx, float *a, float *b)
         for (iz=0; iz<nb; iz++)         b[ix*nyb+iz] = b[ix*nyb+nb];//top
         for (iz=nz+nb; iz<nyb; iz++) b[ix*nyb+iz] = b[ix*nyb+nb+nz-1];//bottom
     }
-
     for (iz=0; iz<nyb; iz++){
         for(ix=0; ix<nb; ix++)  b[ix*nyb+iz] = b[nb*nyb+iz];//left
         for(ix=nb+nx; ix<nxb; ix++)     b[ix*nyb+iz] = b[(nb+nx-1)*nyb+iz];//right
@@ -110,9 +109,15 @@ typedef struct{
     int incShots;
     int modelNx;
     int modelNy;
+    int modelNxBorder;
+    int modelNyBorder;
     int modelDx;
     int modelDy;
     int taperBorder;
+    // Auxiliaries
+    size_t nxy;
+    size_t nbxy;
+    size_t nbytes;
 } geometry;
 
 geometry getParameters(sf_file FvelModel)
@@ -126,12 +131,19 @@ geometry getParameters(sf_file FvelModel)
     sf_getint("incShots",&param.incShots);
     sf_histint(FvelModel, "n1",&param.modelNy);
     sf_histint(FvelModel, "n2", &param.modelNx);
+    sf_histint(FvelModel, "d1",&param.modelDy);
+    sf_histint(FvelModel, "d2", &param.modelDx);
     param.lastReceptorPos = param.firstReceptorPos + param.nReceptors;
     param.taperBorder = 0.2 * param.modelNx;
+    param.nxy = param.modelNx * param.modelNy;
+    param.modelNxBorder = param.modelNx + 2 * param.taperBorder;
+    param.modelNyBorder = param.modelNy + 2 * param.taperBorder;
+    param.nbxy = param.modelNxBorder * param.modelNyBorder;
+    param.nbytes = param.nbxy * sizeof(float); // bytes to store modelNxBorder * modelNyBorder
     return param;
 }
 
-void test_getParameters (geometry parameters)
+void test_getParameters (geometry param)
 {
     cerr<<"param.incShots: "<<param.incShots<<endl;
     cerr<<"param.modelDims[0] "<<param.modelNx<<param.modelNy<<endl;
@@ -141,6 +153,36 @@ void test_getParameters (geometry parameters)
     cerr<<"param.lastReceptorPos "<<param.lastReceptorPos<<endl;
 }
 
+typedef struct{
+    float *velField;
+    float *extVelField;
+    float *firstLayerVelField;
+    float maxVel;
+} velocity;
+
+velocity getVelFields(sf_file FvelModel, geometry param)
+{
+    velocity h_model;
+
+    h_model.velField = new float[param.nxy];
+    sf_floatread(h_model.velField, param.nxy, FvelModel);
+
+    h_model.extVelField = new float[param.nbxy];
+    memset(h_model.extVelField,0,param.nbytes);
+    expand(param.taperBorder, param.modelNyBorder, param.modelNxBorder, param.modelNy, param.modelNx, h_model.velField, h_model.extVelField);
+
+    h_model.maxVel = h_model.velField[0];
+    for(int i=1; i < param.nxy; i++){
+        if(h_model.velField[i] > h_model.maxVel){
+            h_model.maxVel = h_model.velField[i];
+        }
+    }
+
+    h_model.firstLayerVelField = new float[param.nbxy];
+    dummyVelField(param.modelNxBorder, param.modelNyBorder, param.taperBorder, h_model.extVelField, h_model.firstLayerVelField);
+
+    return h_model;
+}
 
 /*
 ===================================================================================
@@ -159,71 +201,32 @@ int main(int argc, char *argv[])
     Fvel = sf_input("vel");
 
     // Getting command line parameters
-    int nr; sf_getint("nr",&nr);
-    int isrc; sf_getint("isrc",&isrc);
-    int jsrc; sf_getint("jsrc",&jsrc);
-    int gxbeg; sf_getint("gxbeg",&gxbeg);
-    int nshots; sf_getint("nshots",&nshots);
-    int incShots; sf_getint("incShots",&incShots);
-    int gxend = gxbeg + nr;
-
-    geometry parameters = getParameters(Fvel);
-
-    // R/W axes
-    sf_axis ax,ay;
-    int nx, ny, nb, nxb, nyb;
-    float dx, dy;
-    ay = sf_iaxa(Fvel,1); ny = sf_n(ay); dy = sf_d(ay);
-    ax = sf_iaxa(Fvel,2); nx = sf_n(ax); dx = sf_d(ax);
-    cerr<<"nx = "<<nx<<endl;
-    cerr<<"ny = "<<ny<<endl;
-
-    size_t nxy = nx * ny;
-    nb = 0.2 * nx;
-    nxb = nx + 2 * nb;
-    nyb = ny + 2 * nb;
-    size_t nbxy = nxb * nyb;
-    size_t nbytes = nbxy * sizeof(float);/* bytes to store nx * ny */
+    geometry param = getParameters(Fvel);
 
     // Allocate memory for velocity model
-    float *h_vp = new float[nxy]; sf_floatread(h_vp, nxy, Fvel);
-    float *h_vpe = new float[nbxy];
-    memset(h_vpe,0,nbytes);
-    //extendVelField(nx, ny, nb, h_vp, h_vpe);
-    expand(nb, nyb, nxb, ny, nx, h_vp, h_vpe);
-    float _vp = h_vp[0];
-    for(int i=1; i < nxy; i++){
-        if(h_vp[i] > _vp){
-            _vp = h_vp[i];
-        }
-    }
+    velocity h_model = getVelFields (Fvel, param);
 
     printf("MODEL:\n");
-    printf("\t%i x %i\t:ny x nx\n", ny, nx);
-    printf("\t%f\t:dx\n", dx);
-    printf("\t%f\t:h_vp[0]\n", h_vp[0]);
+    printf("\t%i x %i\t:param.modelNy x param.modelNx\n", param.modelNy, param.modelNx);
+    printf("\t%f\t:param.modelDx\n", param.modelDx);
+    printf("\t%f\t:h_model.velField[0]\n", h_model.velField[0]);
 
-
-    // Allocate memory for dummy velocity model and seismogram
-    float *h_dvpe = new float[nbxy];
-    dummyVelField(nxb, nyb, nb, h_vpe, h_dvpe);
-
-    cerr<<"vp = "<<_vp<<endl;
-    cerr<<"nb = "<<nb<<endl;
+    cerr<<"vp = "<<h_model.maxVel<<endl;
+    cerr<<"param.taperBorder = "<<param.taperBorder<<endl;
 
     // Taper mask
-    float *h_abc = new float[nb];
+    float *h_abc = new float[param.taperBorder];
     float *h_tapermask = new float[nbxy];
     for(int i=0; i < nbxy; i++){
         h_tapermask[i] = 1;
     }
-    abc_coef(nb, h_abc);
-    taper(nx, ny, nb, h_abc, h_tapermask);
+    abc_coef(param.taperBorder, h_abc);
+    taper(param.modelNx, param.modelNy, param.taperBorder, h_abc, h_tapermask);
 
 
     // Time stepping
     float t_total = 2.5;               /* total time of wave propagation, sec */
-    float dt = 0.5 * dx / _vp;         /* time step assuming constant vp, sec */
+    float dt = 0.5 * param.modelDx / h_model.maxVel;         /* time step assuming constant vp, sec */
     int nt = round(t_total / dt);      /* number of time steps */
     int snap_step = round(0.1 * nt);   /* save snapshot every ... steps */
 
@@ -233,8 +236,8 @@ int main(int argc, char *argv[])
     printf("\t%i\t:nt\n", nt);
 
     // Data
-    float *h_data = new float[nr * nt];
-    float *h_directwave = new float[nr * nt];
+    float *h_data = new float[param.nReceptors * nt];
+    float *h_directwave = new float[param.nReceptors * nt];
 
     // Source
     float f0 = 10.0;                    /* source dominant frequency, Hz */
@@ -247,7 +250,7 @@ int main(int argc, char *argv[])
 
     // Fill source waveform vector
     float a = PI * PI * f0 * f0;            /* const for wavelet */
-    float dt2dx2 = (dt * dt) / (dx * dx);   /* const for fd stencil */
+    float dt2dx2 = (dt * dt) / (param.modelDx * param.modelDx);   /* const for fd stencil */
     for (int it = 0; it < nt; it++)
     {
         h_time[it] = it * dt;
@@ -259,15 +262,15 @@ int main(int argc, char *argv[])
     printf("SOURCE:\n");
     printf("\t%f\t:f0\n", f0);
     printf("\t%f\t:t0\n", t0);
-    printf("\t%i\t:isrc - ox\n", isrc);
-    printf("\t%i\t:jsrc - oy\n", jsrc);
+    printf("\t%i\t:param.srcPosY - ox\n", param.srcPosY);
+    printf("\t%i\t:param.srcPosX - oy\n", param.srcPosX);
     printf("\t%e\t:dt2dx2\n", dt2dx2);
-    printf("\t%f\t:min wavelength [m]\n",(float)_vp / (2*f0));
-    printf("\t%f\t:ppw\n",(float)_vp / (2*f0) / dx);
+    printf("\t%f\t:min wavelength [m]\n",(float)h_model.maxVel / (2*f0));
+    printf("\t%f\t:ppw\n",(float)h_model.maxVel / (2*f0) / param.modelDx);
 
     // Set Output files
 
-    int dimensions[3] = {nt,nr,nshots};
+    int dimensions[3] = {nt,param.nReceptors,param.nShots};
     float spacings[3] = {1,1,1};
     int origins[3] = {0,0,0};
     sf_file Fdata_directWave = createFile3D("comOD",dimensions,spacings,origins);
@@ -275,14 +278,14 @@ int main(int argc, char *argv[])
     sf_file Fdata = createFile3D("data",dimensions,spacings,origins);
 
     // ===================MODELING======================
-    modeling(nx, ny, nb, nr, nt, gxbeg, gxend, isrc, jsrc, dx, dy, dt, h_vpe, h_dvpe, h_tapermask, h_data, h_directwave,  h_wavelet, false, nshots, incShots, Fonly_directWave, Fdata_directWave, Fdata);
+    modeling(param.modelNx, param.modelNy, param.taperBorder, param.nReceptors, nt, param.firstReceptorPos, param.lastReceptorPos, param.srcPosY, param.srcPosX, param.modelDx, param.modelDy, dt, h_model.extVelField, h_model.firstLayerVelField, h_tapermask, h_data, h_directwave,  h_wavelet, false, param.nShots, param.incShots, Fonly_directWave, Fdata_directWave, Fdata);
     // =================================================
 
 
     printf("Clean memory...");
-    delete[] h_vp;
-    delete[] h_vpe;
-    delete[] h_dvpe;
+    delete[] h_model.velField;
+    delete[] h_model.extVelField;
+    delete[] h_model.firstLayerVelField;
     delete[] h_data;
     delete[] h_directwave;
     delete[] h_abc;

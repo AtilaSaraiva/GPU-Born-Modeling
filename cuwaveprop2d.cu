@@ -139,17 +139,17 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
     printf("OK\n");
 
     // Print out specs of the main GPU
-    //cudaDeviceProp deviceProp;
-    //CHECK(cudaGetDeviceProperties(&deviceProp, 0));
-    //printf("GPU0:\t%s\t%d.%d:\n", deviceProp.name, deviceProp.major, deviceProp.minor);
-    //printf("\t%lu GB:\t total Global memory (gmem)\n", deviceProp.totalGlobalMem / 1024 / 1024 / 1000);
-    //printf("\t%lu MB:\t total Constant memory (cmem)\n", deviceProp.totalConstMem / 1024);
-    //printf("\t%lu MB:\t total Shared memory per block (smem)\n", deviceProp.sharedMemPerBlock / 1024);
-    //printf("\t%d:\t total threads per block\n", deviceProp.maxThreadsPerBlock);
-    //printf("\t%d:\t total registers per block\n", deviceProp.regsPerBlock);
-    //printf("\t%d:\t warp size\n", deviceProp.warpSize);
-    //printf("\t%d x %d x %d:\t max dims of block\n", deviceProp.maxThreadsDim[0], deviceProp.maxThreadsDim[1], deviceProp.maxThreadsDim[2]);
-    //printf("\t%d x %d x %d:\t max dims of grid\n", deviceProp.maxGridSize[0], deviceProp.maxGridSize[1], deviceProp.maxGridSize[2]);
+    cudaDeviceProp deviceProp;
+    CHECK(cudaGetDeviceProperties(&deviceProp, 0));
+    printf("GPU0:\t%s\t%d.%d:\n", deviceProp.name, deviceProp.major, deviceProp.minor);
+    printf("\t%lu GB:\t total Global memory (gmem)\n", deviceProp.totalGlobalMem / 1024 / 1024 / 1000);
+    printf("\t%lu MB:\t total Constant memory (cmem)\n", deviceProp.totalConstMem / 1024);
+    printf("\t%lu MB:\t total Shared memory per block (smem)\n", deviceProp.sharedMemPerBlock / 1024);
+    printf("\t%d:\t total threads per block\n", deviceProp.maxThreadsPerBlock);
+    printf("\t%d:\t total registers per block\n", deviceProp.regsPerBlock);
+    printf("\t%d:\t warp size\n", deviceProp.warpSize);
+    printf("\t%d x %d x %d:\t max dims of block\n", deviceProp.maxThreadsDim[0], deviceProp.maxThreadsDim[1], deviceProp.maxThreadsDim[2]);
+    printf("\t%d x %d x %d:\t max dims of grid\n", deviceProp.maxGridSize[0], deviceProp.maxGridSize[1], deviceProp.maxGridSize[2]);
     CHECK(cudaSetDevice(0));
 
     // Print out CUDA domain partitioning info
@@ -174,6 +174,7 @@ void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int 
         printf("Time loop...\n");
         for (int it = 0; it < nt; it++)
         {
+            if(it==0) printf("oiiii");
             taper_gpu<<<grid,block>>>(d_tapermask, d_u1);
             taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
 
