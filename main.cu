@@ -181,7 +181,78 @@ velocity getVelFields(sf_file FvelModel, geometry param)
     h_model.firstLayerVelField = new float[param.nbxy];
     dummyVelField(param.modelNxBorder, param.modelNyBorder, param.taperBorder, h_model.extVelField, h_model.firstLayerVelField);
 
+    printf("MODEL:\n");
+    printf("\t%i x %i\t:param.modelNy x param.modelNx\n", param.modelNy, param.modelNx);
+    printf("\t%f\t:param.modelDx\n", param.modelDx);
+    printf("\t%f\t:h_model.velField[0]\n", h_model.velField[0]);
     return h_model;
+}
+
+float* tapermask(geometry param)
+{
+    float *h_abc = new float[param.taperBorder];
+    float *h_tapermask = new float[param.nbxy];
+    for(int i=0; i < param.nbxy; i++){
+        h_tapermask[i] = 1;
+    }
+    abc_coef(param.taperBorder, h_abc);
+    taper(param.modelNx, param.modelNy, param.taperBorder, h_abc, h_tapermask);
+    delete[] h_abc;
+    return h_tapermask;
+}
+
+typedef struct{
+    float *seismogram;
+    float *directWaveOnly;
+} seismicData;
+
+seismicData allocHostSeisData(geometry param, int nt)
+{
+    seismicData h_seisData;
+    h_seisData.seismogram = new float[param.nReceptors * nt];
+    h_seisData.directWaveOnly = new float[param.nReceptors * nt];
+    return h_seisData;
+}
+
+typedef struct{
+    float totalTime;
+    float timeStep;
+    int timeSamplesNt;
+    int snapStep;
+    float *timeSeries;
+} source;
+
+source fillSrc(geometry param, velocity h_model)
+{
+    source wavelet;
+    wavelet.totalTime = 2.5;               /* total time of wave propagation, sec */
+    wavelet.timeStep = 0.5 * param.modelDx / h_model.maxVel;         /* time step assuming constant vp, sec */
+    wavelet.timeSamplesNt = round(wavelet.totalTime / wavelet.timeStep);      /* number of time steps */
+    wavelet.snapStep = round(0.1 * wavelet.timeSamplesNt);   /* save snapshot every ... steps */
+
+    float f0 = 10.0;                    /* source dominawavelet.timeSamplesNt frequency, Hz */
+    float t0 = 1.2 / f0;                /* source padding to move wavelet from left of zero */
+
+    float tbytes = wavelet.timeSamplesNt * sizeof(float);
+    float* time = (float *)malloc(tbytes);
+    wavelet.timeSeries = (float *)malloc(tbytes);
+
+    // Fill source waveform vector
+    float a = PI * PI * f0 * f0;            /* const for wavelet */
+    float dt2dx2 = (wavelet.timeStep * wavelet.timeStep) / (param.modelDx * param.modelDx);   /* const for fd stencil */
+    for (int it = 0; it < wavelet.timeSamplesNt; it++)
+    {
+        time[it] = it * wavelet.timeStep;
+        // Ricker wavelet (Mexican hat), second derivative of Gaussian
+        wavelet.timeSeries[it] = 1e10 * (1.0 - 2.0 * a * pow(time[it] - t0, 2)) * exp(-a * pow(time[it] - t0, 2));
+        wavelet.timeSeries[it] *= dt2dx2;
+    }
+    delete[] time;
+    printf("TIME STEPPING:\n");
+    printf("\t%e\t:h_wavelet.totalTime\n", wavelet.totalTime);
+    printf("\t%e\t:h_wavelet.timeStep\n", wavelet.timeStep);
+    printf("\t%i\t:h_wavelet.timeSamplesNt\n", wavelet.timeSamplesNt);
+    return wavelet;
 }
 
 /*
@@ -206,71 +277,21 @@ int main(int argc, char *argv[])
     // Allocate memory for velocity model
     velocity h_model = getVelFields (Fvel, param);
 
-    printf("MODEL:\n");
-    printf("\t%i x %i\t:param.modelNy x param.modelNx\n", param.modelNy, param.modelNx);
-    printf("\t%f\t:param.modelDx\n", param.modelDx);
-    printf("\t%f\t:h_model.velField[0]\n", h_model.velField[0]);
 
     cerr<<"vp = "<<h_model.maxVel<<endl;
     cerr<<"param.taperBorder = "<<param.taperBorder<<endl;
 
     // Taper mask
-    float *h_abc = new float[param.taperBorder];
-    float *h_tapermask = new float[nbxy];
-    for(int i=0; i < nbxy; i++){
-        h_tapermask[i] = 1;
-    }
-    abc_coef(param.taperBorder, h_abc);
-    taper(param.modelNx, param.modelNy, param.taperBorder, h_abc, h_tapermask);
-
+    float *h_tapermask = tapermask(param);
 
     // Time stepping
-    float t_total = 2.5;               /* total time of wave propagation, sec */
-    float dt = 0.5 * param.modelDx / h_model.maxVel;         /* time step assuming constant vp, sec */
-    int nt = round(t_total / dt);      /* number of time steps */
-    int snap_step = round(0.1 * nt);   /* save snapshot every ... steps */
-
-    printf("TIME STEPPING:\n");
-    printf("\t%e\t:t_total\n", t_total);
-    printf("\t%e\t:dt\n", dt);
-    printf("\t%i\t:nt\n", nt);
+    source h_wavelet = fillSrc(param, h_model);
 
     // Data
-    float *h_data = new float[param.nReceptors * nt];
-    float *h_directwave = new float[param.nReceptors * nt];
-
-    // Source
-    float f0 = 10.0;                    /* source dominant frequency, Hz */
-    float t0 = 1.2 / f0;                /* source padding to move wavelet from left of zero */
-
-    float *h_wavelet, *h_time;
-    float tbytes = nt * sizeof(float);
-    h_time = (float *)malloc(tbytes);
-    h_wavelet = (float *)malloc(tbytes);
-
-    // Fill source waveform vector
-    float a = PI * PI * f0 * f0;            /* const for wavelet */
-    float dt2dx2 = (dt * dt) / (param.modelDx * param.modelDx);   /* const for fd stencil */
-    for (int it = 0; it < nt; it++)
-    {
-        h_time[it] = it * dt;
-        // Ricker wavelet (Mexican hat), second derivative of Gaussian
-        h_wavelet[it] = 1e10 * (1.0 - 2.0 * a * pow(h_time[it] - t0, 2)) * exp(-a * pow(h_time[it] - t0, 2));
-        h_wavelet[it] *= dt2dx2;
-    }
-
-    printf("SOURCE:\n");
-    printf("\t%f\t:f0\n", f0);
-    printf("\t%f\t:t0\n", t0);
-    printf("\t%i\t:param.srcPosY - ox\n", param.srcPosY);
-    printf("\t%i\t:param.srcPosX - oy\n", param.srcPosX);
-    printf("\t%e\t:dt2dx2\n", dt2dx2);
-    printf("\t%f\t:min wavelength [m]\n",(float)h_model.maxVel / (2*f0));
-    printf("\t%f\t:ppw\n",(float)h_model.maxVel / (2*f0) / param.modelDx);
+    seismicData h_seisData = allocHostSeisData(param, h_wavelet.timeSamplesNt);
 
     // Set Output files
-
-    int dimensions[3] = {nt,param.nReceptors,param.nShots};
+    int dimensions[3] = {h_wavelet.timeSamplesNt,param.nReceptors,param.nShots};
     float spacings[3] = {1,1,1};
     int origins[3] = {0,0,0};
     sf_file Fdata_directWave = createFile3D("comOD",dimensions,spacings,origins);
@@ -278,7 +299,7 @@ int main(int argc, char *argv[])
     sf_file Fdata = createFile3D("data",dimensions,spacings,origins);
 
     // ===================MODELING======================
-    modeling(param.modelNx, param.modelNy, param.taperBorder, param.nReceptors, nt, param.firstReceptorPos, param.lastReceptorPos, param.srcPosY, param.srcPosX, param.modelDx, param.modelDy, dt, h_model.extVelField, h_model.firstLayerVelField, h_tapermask, h_data, h_directwave,  h_wavelet, false, param.nShots, param.incShots, Fonly_directWave, Fdata_directWave, Fdata);
+    modeling(param.modelNx, param.modelNy, param.taperBorder, param.nReceptors, h_wavelet.timeSamplesNt, param.firstReceptorPos, param.lastReceptorPos, param.srcPosY, param.srcPosX, param.modelDx, param.modelDy, h_wavelet.timeStep, h_model.extVelField, h_model.firstLayerVelField, h_tapermask, h_seisData.seismogram, h_seisData.directWaveOnly,  h_wavelet.timeSeries, false, param.nShots, param.incShots, Fonly_directWave, Fdata_directWave, Fdata);
     // =================================================
 
 
@@ -286,12 +307,11 @@ int main(int argc, char *argv[])
     delete[] h_model.velField;
     delete[] h_model.extVelField;
     delete[] h_model.firstLayerVelField;
-    delete[] h_data;
-    delete[] h_directwave;
-    delete[] h_abc;
+    delete[] h_seisData.seismogram;
+    delete[] h_seisData.directWaveOnly;
     delete[] h_tapermask;
-    delete[] h_time;
-    delete[] h_wavelet;
+    //delete[] h_time;
+    delete[] h_wavelet.timeSeries;
 
 
     return 0;
