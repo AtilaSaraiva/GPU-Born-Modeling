@@ -23,11 +23,52 @@ Add this to c_cpp_properties.json if linting isn't working for CUDA libraries
             ],
 */
 
+typedef struct{
+    int nShots;
+    int srcPosX;
+    int srcPosY;
+    int firstReceptorPos;
+    int nReceptors;
+    int lastReceptorPos;
+    int incShots;
+    int modelNx;
+    int modelNy;
+    int modelNxBorder;
+    int modelNyBorder;
+    int modelDx;
+    int modelDy;
+    int taperBorder;
+    // Auxiliaries
+    size_t nxy;
+    size_t nbxy;
+    size_t nbytes;
+} geometry;
+
+typedef struct{
+    float *velField;
+    float *extVelField;
+    float *firstLayerVelField;
+    float maxVel;
+} velocity;
+
+typedef struct{
+    float *seismogram;
+    float *directWaveOnly;
+} seismicData;
+
+typedef struct{
+    float totalTime;
+    float timeStep;
+    int timeSamplesNt;
+    int snapStep;
+    float *timeSeries;
+} source;
+
 #include "cuwaveprop2d.cu"
 
 using namespace std;
 
-void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_dvpe, float *h_tapermask, float *h_data, float *h_directwave, float * h_wavelet, bool snaps, int nshots, int incShots, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata);
+//void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_dvpe, float *h_tapermask, float *h_data, float *h_directwave, float * h_wavelet, bool snaps, int nshots, int incShots, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata);
 
 void dummyVelField(int nxb, int nyb, int nb, float *h_vpe, float *h_dvpe)
 {
@@ -99,26 +140,6 @@ sf_file createFile3D (const char *name, int dimensions[3], float spacings[3], in
     return Fdata;
 }
 
-typedef struct{
-    int nShots;
-    int srcPosX;
-    int srcPosY;
-    int firstReceptorPos;
-    int nReceptors;
-    int lastReceptorPos;
-    int incShots;
-    int modelNx;
-    int modelNy;
-    int modelNxBorder;
-    int modelNyBorder;
-    int modelDx;
-    int modelDy;
-    int taperBorder;
-    // Auxiliaries
-    size_t nxy;
-    size_t nbxy;
-    size_t nbytes;
-} geometry;
 
 geometry getParameters(sf_file FvelModel)
 {
@@ -153,12 +174,6 @@ void test_getParameters (geometry param)
     cerr<<"param.lastReceptorPos "<<param.lastReceptorPos<<endl;
 }
 
-typedef struct{
-    float *velField;
-    float *extVelField;
-    float *firstLayerVelField;
-    float maxVel;
-} velocity;
 
 velocity getVelFields(sf_file FvelModel, geometry param)
 {
@@ -201,10 +216,6 @@ float* tapermask(geometry param)
     return h_tapermask;
 }
 
-typedef struct{
-    float *seismogram;
-    float *directWaveOnly;
-} seismicData;
 
 seismicData allocHostSeisData(geometry param, int nt)
 {
@@ -214,13 +225,6 @@ seismicData allocHostSeisData(geometry param, int nt)
     return h_seisData;
 }
 
-typedef struct{
-    float totalTime;
-    float timeStep;
-    int timeSamplesNt;
-    int snapStep;
-    float *timeSeries;
-} source;
 
 source fillSrc(geometry param, velocity h_model)
 {
@@ -299,7 +303,7 @@ int main(int argc, char *argv[])
     sf_file Fdata = createFile3D("data",dimensions,spacings,origins);
 
     // ===================MODELING======================
-    modeling(param.modelNx, param.modelNy, param.taperBorder, param.nReceptors, h_wavelet.timeSamplesNt, param.firstReceptorPos, param.lastReceptorPos, param.srcPosY, param.srcPosX, param.modelDx, param.modelDy, h_wavelet.timeStep, h_model.extVelField, h_model.firstLayerVelField, h_tapermask, h_seisData.seismogram, h_seisData.directWaveOnly,  h_wavelet.timeSeries, false, param.nShots, param.incShots, Fonly_directWave, Fdata_directWave, Fdata);
+    modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, false);
     // =================================================
 
 
