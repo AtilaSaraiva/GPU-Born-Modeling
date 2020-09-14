@@ -140,7 +140,6 @@ sf_file createFile3D (const char *name, int dimensions[3], float spacings[3], in
     return Fdata;
 }
 
-
 geometry getParameters(sf_file FvelModel)
 {
     geometry param;
@@ -281,7 +280,6 @@ int main(int argc, char *argv[])
     // Allocate memory for velocity model
     velocity h_model = getVelFields (Fvel, param);
 
-
     cerr<<"vp = "<<h_model.maxVel<<endl;
     cerr<<"param.taperBorder = "<<param.taperBorder<<endl;
 
@@ -305,7 +303,6 @@ int main(int argc, char *argv[])
     // ===================MODELING======================
     modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, false);
     // =================================================
-
 
     printf("Clean memory...");
     delete[] h_model.velField;
