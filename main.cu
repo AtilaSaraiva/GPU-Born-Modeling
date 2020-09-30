@@ -35,8 +35,8 @@ typedef struct{
     int modelNy;
     int modelNxBorder;
     int modelNyBorder;
-    int modelDx;
-    int modelDy;
+    float modelDx;
+    float modelDy;
     int taperBorder;
     // Auxiliaries
     size_t nxy;
@@ -151,8 +151,8 @@ geometry getParameters(sf_file FvelModel)
     sf_getint("incShots",&param.incShots);
     sf_histint(FvelModel, "n1",&param.modelNy);
     sf_histint(FvelModel, "n2", &param.modelNx);
-    sf_histint(FvelModel, "d1",&param.modelDy);
-    sf_histint(FvelModel, "d2", &param.modelDx);
+    sf_histfloat(FvelModel, "d1",&param.modelDy);
+    sf_histfloat(FvelModel, "d2", &param.modelDx);
     param.lastReceptorPos = param.firstReceptorPos + param.nReceptors;
     param.taperBorder = 0.2 * param.modelNx;
     param.nxy = param.modelNx * param.modelNy;
@@ -162,17 +162,6 @@ geometry getParameters(sf_file FvelModel)
     param.nbytes = param.nbxy * sizeof(float); // bytes to store modelNxBorder * modelNyBorder
     return param;
 }
-
-void test_getParameters (geometry param)
-{
-    cerr<<"param.incShots: "<<param.incShots<<endl;
-    cerr<<"param.modelDims[0] "<<param.modelNx<<param.modelNy<<endl;
-    cerr<<"param.nShots "<<param.nShots<<endl;
-    cerr<<"param.nReceptors "<<param.nReceptors<<endl;
-    cerr<<"param.firstReceptorPos "<<param.firstReceptorPos<<endl;
-    cerr<<"param.lastReceptorPos "<<param.lastReceptorPos<<endl;
-}
-
 
 velocity getVelFields(sf_file FvelModel, geometry param)
 {
@@ -258,6 +247,20 @@ source fillSrc(geometry param, velocity h_model)
     return wavelet;
 }
 
+void test_getParameters (geometry param, source wavelet)
+{
+    cerr<<"param.incShots: "<<param.incShots<<endl;
+    cerr<<"param.modelDims nx = "<<param.modelNx<<" ny = "<<param.modelNy<<endl;
+    cerr<<"param.modelDx = "<<param.modelDx<<" param.modelDy = "<<param.modelDy<<endl;
+    cerr<<"param.nShots "<<param.nShots<<endl;
+    cerr<<"param.nReceptors "<<param.nReceptors<<endl;
+    cerr<<"param.firstReceptorPos "<<param.firstReceptorPos<<endl;
+    cerr<<"param.lastReceptorPos "<<param.lastReceptorPos<<endl;
+    cerr<<"wavelet.timeSamplesNt "<<wavelet.timeSamplesNt<<endl;
+    cerr<<"wavelet.timeStep "<<wavelet.timeStep<<endl;
+}
+
+
 /*
 ===================================================================================
 MAIN
@@ -299,6 +302,9 @@ int main(int argc, char *argv[])
     sf_file Fdata_directWave = createFile3D("comOD",dimensions,spacings,origins);
     sf_file Fonly_directWave = createFile3D("OD",dimensions,spacings,origins);
     sf_file Fdata = createFile3D("data",dimensions,spacings,origins);
+
+
+    test_getParameters(param, h_wavelet);
 
     // ===================MODELING======================
     modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, false);

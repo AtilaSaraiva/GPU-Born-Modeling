@@ -3,11 +3,11 @@ from rsf.proj import *
 raw=['marmvel.hh','marmsmooth.HH']
 for file in raw:
     Fetch(file,"marm")
-    if file is 'marmvel.hh':
+    if file == 'marmvel.hh':
         d=.004
         fileOut='marmvel'
         t='Velocity\ Model'
-    if file is 'marmsmooth.HH':
+    if file == 'marmsmooth.HH':
         d=.024
         fileOut='marmsmooth'
         t='Smoothed\ Velocity\ Model'
@@ -22,6 +22,8 @@ for file in raw:
         title=%s barlabel=Velocity barunit=km/s screenratio=.326
         screenht=3 wheretitle=t labelsz=4 titlesz=6 ''' % t)
 
+    Flow('velPadded','marmvel','../verticalPadding/pad padding=50')
+    Result('velPadded','grey')
 
-    Flow('seismicData directWave seismicDataWithDW','marmvel','../mod incShots=100 nshots=17 nr=600 isrc=0 jsrc=300 gxbeg=0 comOD=${TARGETS[2]} vel=${SOURCES[0]} data=${TARGETS[0]} OD=${TARGETS[1]}',stdout=0)
+    Flow('seismicData directWave seismicDataWithDW','velPadded','../mod incShots=100 nshots=17 nr=600 isrc=0 jsrc=300 gxbeg=0 comOD=${TARGETS[2]} vel=${SOURCES[0]} data=${TARGETS[0]} OD=${TARGETS[1]}',stdout=0)
 End()

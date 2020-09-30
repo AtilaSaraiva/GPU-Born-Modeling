@@ -31,7 +31,7 @@ sf_file createFile3D (const char *name, int dimensions[3], float spacings[3], in
         sprintf(key_d,"d%i",i+1);
         sprintf(key_o,"o%i",i+1);
         sf_putint(Fdata,key_n,dimensions[i]);
-        sf_putint(Fdata,key_d,spacings[i]);
+        sf_putfloat(Fdata,key_d,spacings[i]);
         sf_putint(Fdata,key_o,origins[i]);
     }
 
@@ -46,13 +46,16 @@ int main(int argc, char* argv[])
     Fvel = sf_input("in");
     int padding; sf_getint("padding", &padding);
     int nx,ny;
+    float dx,dy;
     sf_histint(Fvel, "n1", &ny);
     sf_histint(Fvel, "n2", &nx);
+    sf_histfloat(Fvel, "d1", &dy);
+    sf_histfloat(Fvel, "d2", &dx);
     float *velField = new float[ny * nx];
     sf_floatread(velField, ny * nx, Fvel);
 
     int dimensions[3] = {ny + padding,nx,1};
-    float spacings[3] = {1,1,1};
+    float spacings[3] = {dy,dx,1};
     int origins[3] = {0,0,0};
 
     float *velPadded = padVelField(ny, nx, padding, velField);
