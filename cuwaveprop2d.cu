@@ -90,6 +90,23 @@ void saveSnapshotIstep(int it, float *data, int nx, int ny, const char *tag, int
     return;
 }
 
+void test_kernel_add_sourceArray(float *d_reflectivity, geometry param, dim3 grid, dim3 block)
+{
+    float *d_zeros;
+    CHECK(cudaMalloc((void **)&d_zeros, param.nbytes))       /* wavefield at t-2 */
+    CHECK(cudaMemset(d_zeros, 0, param.nbytes))
+    kernel_add_sourceArray<<<grid,block>>>(d_zeros, d_reflectivity);
+
+    float *h_zeros = new float[param.nbxy];
+    CHECK(cudaMemcpy(h_zeros, d_zeros, param.nbytes, cudaMemcpyDeviceToHost));
+
+    FILE *f_test = fopen("test_kernel_add_sourceArray", "w");
+
+    fwrite(h_zeros, sizeof(float), param.nbxy, f_test);
+    fclose(f_test);
+}
+
+//void test_kernel_applySourceArray(float dt, float *d_reflectivity, float *d_pField, float *d_vel, float *d_q)
 
 //void modeling(int nx, int ny, int nb, int nr, int nt, int gxbeg, int gxend, int isrc, int jsrc, float dx, float dy, float dt, float *h_vpe, float *h_dvpe, float *h_tapermask, float *h_data, float *h_directwave, float * h_wavelet, bool snaps, int nshots, int incShots, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata)
 void modeling(geometry param, velocity h_model, source h_wavelet, float *h_tapermask, seismicData h_seisData, sf_file Fonly_directWave, sf_file Fdata_directWave, sf_file Fdata, int snaps)
@@ -101,13 +118,15 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
 
     // Allocate memory on device
     printf("Allocate and copy memory on the device...\n");
-    float *d_u1, *d_u2, *d_vp, *d_wavelet, *d_tapermask, *d_data, *d_directwave, *d_dvp;
+    float *d_u1, *d_u2, *d_q1, *d_q2, *d_vp, *d_wavelet, *d_tapermask, *d_data, *d_directwave, *d_reflectivity;
     CHECK(cudaMalloc((void **)&d_u1, param.nbytes))       /* wavefield at t-2 */
     CHECK(cudaMalloc((void **)&d_u2, param.nbytes))       /* wavefield at t-1 */
+    CHECK(cudaMalloc((void **)&d_q1, param.nbytes))       /* wavefield at t-2 */
+    CHECK(cudaMalloc((void **)&d_q2, param.nbytes))       /* wavefield at t-1 */
     CHECK(cudaMalloc((void **)&d_vp, param.nbytes))       /* velocity model */
-    CHECK(cudaMalloc((void **)&d_dvp, param.nbytes))       /* velocity model */
     CHECK(cudaMalloc((void **)&d_wavelet, tbytes)); /* source term for each time step */
     CHECK(cudaMalloc((void **)&d_tapermask, param.nbytes));
+    CHECK(cudaMalloc((void **)&d_reflectivity, param.nxy * sizeof(float)));
     CHECK(cudaMalloc((void **)&d_data, dbytes));
     CHECK(cudaMalloc((void **)&d_directwave, dbytes));
 
@@ -118,8 +137,8 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
 
     // Copy arrays from host to device
     CHECK(cudaMemcpy(d_vp, h_model.extVelField, param.nbytes, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(d_dvp, h_model.firstLayerVelField, param.nbytes, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_tapermask, h_tapermask, param.nbytes, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_reflectivity, h_model.reflecitivy, param.nxy * sizeof(float), cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_wavelet, h_wavelet.timeSeries, tbytes, cudaMemcpyHostToDevice));
 
     // Copy constants to device constant memory
@@ -160,6 +179,8 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
     dim3 block(BDIMX, BDIMY);
     dim3 grid((param.modelNxBorder + block.x - 1) / block.x, (param.modelNyBorder + block.y - 1) / block.y);
 
+    //test_kernel_add_sourceArray(d_reflectivity, param, grid, block);
+
     // MAIN LOOP
     for(int shot=0; shot<param.nShots; shot++){
         cerr<<"\nShot "<<shot<<" param.firstReceptorPos = "<<param.firstReceptorPos<<", param.srcPosX = "<<param.srcPosX<<", param.srcPosY = "<<param.srcPosY<<
@@ -167,7 +188,11 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
 
         CHECK(cudaMemset(d_u1, 0, param.nbytes))
         CHECK(cudaMemset(d_u2, 0, param.nbytes))
+        CHECK(cudaMemset(d_q1, 0, param.nbytes))
+        CHECK(cudaMemset(d_q2, 0, param.nbytes))
 
+
+        float *d_u3, *d_q3;
         printf("Time loop...\n");
         for (int it = 0; it < h_wavelet.timeSamplesNt; it++)
         {
@@ -175,63 +200,42 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
             taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
 
             // These kernels are in the same stream so they will be executed one by one
-            kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it, param.srcPosX, param.srcPosY);
             kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_vp);
+            kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it, param.srcPosX, param.srcPosY);
+
+            taper_gpu<<<grid,block>>>(d_tapermask, d_q1);
+            taper_gpu<<<grid,block>>>(d_tapermask, d_q2);
+
+            // These kernels are in the same stream so they will be executed one by one
+            kernel_2dfd<<<grid, block>>>(d_q1, d_q2, d_vp);
+            kernel_applySourceArray<<<grid, block>>>(h_wavelet.timeStep, d_reflectivity, d_u2, d_vp, d_q1);
+
             //CHECK(cudaDeviceSynchronize());
-            receptors<<<(param.nReceptors + 32) / 32, 32>>>(it, param.nReceptors, param.firstReceptorPos, d_u1, d_data);
+            receptors<<<(param.nReceptors + 32) / 32, 32>>>(it, param.nReceptors, param.firstReceptorPos, d_q1, d_data);
 
             // Exchange time steps
-            float *d_u3 = d_u1;
+            d_u3 = d_u1;
             d_u1 = d_u2;
             d_u2 = d_u3;
+
+            d_q3 = d_q1;
+            d_q1 = d_q2;
+            d_q2 = d_q3;
 
             // Save snapshot every h_wavelet.snapStep iterations
             if ((it % h_wavelet.snapStep == 0) && snaps == true)
             {
                 printf("%i/%i\n", it+1, h_wavelet.timeSamplesNt);
-                saveSnapshotIstep(it, d_u3, param.modelNxBorder, param.modelNyBorder, "u3", shot);
+                saveSnapshotIstep(it, d_q3, param.modelNxBorder, param.modelNyBorder, "u3", shot);
             }
         }
 
         CHECK(cudaMemset(d_u1, 0, param.nbytes))
         CHECK(cudaMemset(d_u2, 0, param.nbytes))
 
-        for (int it = 0; it < h_wavelet.timeSamplesNt; it++)
-        {
-            taper_gpu<<<grid,block>>>(d_tapermask, d_u1);
-            taper_gpu<<<grid,block>>>(d_tapermask, d_u2);
-
-            // These kernels are in the same stream so they will be executed one by one
-            kernel_add_wavelet<<<grid, block>>>(d_u2, d_wavelet, it, param.srcPosX, param.srcPosY);
-            kernel_2dfd<<<grid, block>>>(d_u1, d_u2, d_dvp);
-            //CHECK(cudaDeviceSynchronize());
-            receptors<<<(param.nReceptors + 32) / 32, 32>>>(it, param.nReceptors, param.firstReceptorPos, d_u1, d_directwave);
-
-            // Exchange time steps
-            float *d_u3 = d_u1;
-            d_u1 = d_u2;
-            d_u2 = d_u3;
-
-            // Save snapshot every h_wavelet.snapStep iterations
-            if ((it % h_wavelet.snapStep == 0) && snaps == true)
-            {
-                printf("%i/%i\n", it+1, h_wavelet.timeSamplesNt);
-                saveSnapshotIstep(it, d_u3, param.modelNxBorder, param.modelNyBorder, "u3", shot);
-            }
-        }
-
         CHECK(cudaMemcpy(h_seisData.seismogram, d_data, dbytes, cudaMemcpyDeviceToHost));
-        CHECK(cudaMemcpy(h_seisData.directWaveOnly, d_directwave, dbytes, cudaMemcpyDeviceToHost));
-
-        sf_floatwrite(h_seisData.seismogram, param.nReceptors * h_wavelet.timeSamplesNt, Fdata_directWave);
-
-        for(int i=0; i<param.nReceptors * h_wavelet.timeSamplesNt; i++){
-            h_seisData.seismogram[i] = h_seisData.seismogram[i] - h_seisData.directWaveOnly[i];
-        }
 
         sf_floatwrite(h_seisData.seismogram, param.nReceptors * h_wavelet.timeSamplesNt, Fdata);
-
-        sf_floatwrite(h_seisData.directWaveOnly, param.nReceptors * h_wavelet.timeSamplesNt, Fonly_directWave);
 
         param.firstReceptorPos += param.incShots;
         param.srcPosX += param.incShots;
@@ -249,7 +253,6 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
     CHECK(cudaFree(d_data));
     CHECK(cudaFree(d_directwave));
     CHECK(cudaFree(d_vp));
-    CHECK(cudaFree(d_dvp));
     CHECK(cudaFree(d_wavelet));
     printf("OK saigo\n");
     CHECK(cudaDeviceReset());

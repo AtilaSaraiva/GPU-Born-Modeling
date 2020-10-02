@@ -7,10 +7,10 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
-badd +1 cudaKernels.cu
-badd +1 cuwaveprop2d.cu
-badd +1 main.cu
-badd +1 Makefile
+badd +0 cudaKernels.cu
+badd +0 cuwaveprop2d.cu
+badd +0 main.cu
+badd +0 Makefile
 argglobal
 %argdel
 $argadd cudaKernels.cu
@@ -32,7 +32,7 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 61 - ((25 * winheight(0) + 16) / 33)
+let s:l = 61 - ((27 * winheight(0) + 18) / 36)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -55,7 +55,7 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 211 - ((15 * winheight(0) + 16) / 33)
+let s:l = 211 - ((16 * winheight(0) + 18) / 36)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -78,7 +78,7 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 20 - ((17 * winheight(0) + 16) / 33)
+let s:l = 20 - ((19 * winheight(0) + 18) / 36)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -101,7 +101,7 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 105 - ((18 * winheight(0) + 16) / 33)
+let s:l = 105 - ((20 * winheight(0) + 18) / 36)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt

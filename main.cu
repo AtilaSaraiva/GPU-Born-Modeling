@@ -48,6 +48,7 @@ typedef struct{
     float *velField;
     float *extVelField;
     float *firstLayerVelField;
+    float *reflecitivy;
     float maxVel;
 } velocity;
 
@@ -101,7 +102,7 @@ void expand(int nb, int nyb, int nxb, int nz, int nx, float *a, float *b)
 void abc_coef (int nb, float *abc)
 {
     for(int i=0; i<nb; i++){
-        abc[i] = exp (-pow(0.001 * (nb - i + 1),2.0));
+        abc[i] = exp (-pow(0.0008 * (nb - i + 1),2.0));
     }
 }
 
@@ -154,7 +155,7 @@ geometry getParameters(sf_file FvelModel)
     sf_histfloat(FvelModel, "d1",&param.modelDy);
     sf_histfloat(FvelModel, "d2", &param.modelDx);
     param.lastReceptorPos = param.firstReceptorPos + param.nReceptors;
-    param.taperBorder = 0.2 * param.modelNx;
+    param.taperBorder = 0.3 * param.modelNx;
     param.nxy = param.modelNx * param.modelNy;
     param.modelNxBorder = param.modelNx + 2 * param.taperBorder;
     param.modelNyBorder = param.modelNy + 2 * param.taperBorder;
@@ -163,12 +164,15 @@ geometry getParameters(sf_file FvelModel)
     return param;
 }
 
-velocity getVelFields(sf_file FvelModel, geometry param)
+velocity getVelFields(sf_file FvelModel, sf_file Freflectivity, geometry param)
 {
     velocity h_model;
 
     h_model.velField = new float[param.nxy];
     sf_floatread(h_model.velField, param.nxy, FvelModel);
+
+    h_model.reflecitivy = new float[param.nxy];
+    sf_floatread(h_model.reflecitivy, param.nxy, Freflectivity);
 
     h_model.extVelField = new float[param.nbxy];
     memset(h_model.extVelField,0,param.nbytes);
@@ -252,6 +256,7 @@ void test_getParameters (geometry param, source wavelet)
     cerr<<"param.incShots: "<<param.incShots<<endl;
     cerr<<"param.modelDims nx = "<<param.modelNx<<" ny = "<<param.modelNy<<endl;
     cerr<<"param.modelDx = "<<param.modelDx<<" param.modelDy = "<<param.modelDy<<endl;
+    cerr<<"param.taperBorder = "<<param.taperBorder<<endl;
     cerr<<"param.nShots "<<param.nShots<<endl;
     cerr<<"param.nReceptors "<<param.nReceptors<<endl;
     cerr<<"param.firstReceptorPos "<<param.firstReceptorPos<<endl;
@@ -276,12 +281,14 @@ int main(int argc, char *argv[])
     // Setting up I/O files
     sf_file Fvel=NULL;
     Fvel = sf_input("vel");
+    sf_file Freflectivity=NULL;
+    Freflectivity = sf_input("ref");
 
     // Getting command line parameters
     geometry param = getParameters(Fvel);
 
     // Allocate memory for velocity model
-    velocity h_model = getVelFields (Fvel, param);
+    velocity h_model = getVelFields (Fvel, Freflectivity, param);
 
     cerr<<"vp = "<<h_model.maxVel<<endl;
     cerr<<"param.taperBorder = "<<param.taperBorder<<endl;
@@ -306,8 +313,9 @@ int main(int argc, char *argv[])
 
     test_getParameters(param, h_wavelet);
 
+
     // ===================MODELING======================
-    modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, false);
+    modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, true);
     // =================================================
 
     printf("Clean memory...");

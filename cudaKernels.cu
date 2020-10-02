@@ -25,6 +25,48 @@ __global__ void kernel_add_wavelet(float *d_u, float *d_wavelet, int it, int jsr
     }
 }
 
+__global__ void kernel_add_sourceArray(float *d_u, float *d_sourceArray)
+{
+    /*
+    d_u             :pointer to an array on device where to add source term
+    d_wavelet       :pointer to an array on device with source signature
+    it              :time step id
+    */
+    unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int idx = gx * c_ny + gy;
+
+    unsigned int gxWoutBord = gx - c_nb;
+    unsigned int gyWoutBord = gy - c_nb;
+    unsigned int nyWoutBord = c_ny - 2 * c_nb;
+
+    if (gy >= c_nb && gy < c_ny - c_nb && gx >= c_nb && gx < c_nx - c_nb)
+    {
+        d_u[idx] += d_sourceArray[gxWoutBord * nyWoutBord + gyWoutBord];
+    }
+}
+
+__global__ void kernel_applySourceArray(float dt, float *d_reflectivity, float *d_pField, float *d_vel, float *d_q)
+{
+    unsigned int gx = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int gy = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int idx = gx * c_ny + gy;
+
+    unsigned int gxWoutBord = gx - c_nb;
+    unsigned int gyWoutBord = gy - c_nb;
+    unsigned int nyWoutBord = c_ny - 2 * c_nb;
+
+    float v_dt2;
+    float updValue;
+
+    if (gy >= c_nb && gy < c_ny - c_nb && gx >= c_nb && gx < c_nx - c_nb)
+    {
+        v_dt2 = d_vel[idx] * d_vel[idx] * dt * dt;
+        updValue = v_dt2 * d_pField[idx] * d_reflectivity[gxWoutBord * nyWoutBord + gyWoutBord];
+        d_q[idx] += updValue;
+    }
+}
+
 __device__ void set_halo(float *global, float shared[][SDIMX], int tx, int ty, int sx, int sy, int gx, int gy, int nx, int ny)
 {
     /*
