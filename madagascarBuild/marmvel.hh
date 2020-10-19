@@ -1,1 +1,1 @@
-/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild/marmvel.hh
+/var/tmp/LSRTM_GPU_proj/Born/madagascarBuild/marmvel.hh

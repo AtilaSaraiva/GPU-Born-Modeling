@@ -4,7 +4,8 @@ raw=['marmvel.hh','marmsmooth.HH']
 for file in raw:
     Fetch(file,"marm")
     if file == 'marmvel.hh':
-        d=.004
+        d=.008
+        #d=0.044
         fileOut='marmvel'
         t='Velocity\ Model'
     if file == 'marmsmooth.HH':
@@ -22,8 +23,8 @@ for file in raw:
         title=%s barlabel=Velocity barunit=km/s screenratio=.326
         screenht=3 wheretitle=t labelsz=4 titlesz=6 ''' % t)
 
-    Flow('velPadded','marmvel','../verticalPadding/pad padding=50')
-    Result('velPadded','grey')
+    Flow('marmref','marmvel','deriv')
+    Result('marmref','grey')
 
-    Flow('seismicData directWave seismicDataWithDW','velPadded','../mod incShots=100 nshots=17 nr=600 isrc=0 jsrc=300 gxbeg=0 comOD=${TARGETS[2]} vel=${SOURCES[0]} data=${TARGETS[0]} OD=${TARGETS[1]}',stdout=0)
+    Flow('seismicData','marmvel marmref','../mod incShots=100 nshots=17 nr=600 isrc=0 jsrc=300 gxbeg=0 ref=${SOURCES[1]} vel=${SOURCES[0]} data=${TARGETS[0]} ',stdout=0)
 End()

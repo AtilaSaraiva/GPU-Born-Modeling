@@ -222,8 +222,9 @@ source fillSrc(geometry param, velocity h_model)
 {
     source wavelet;
     wavelet.totalTime = 2.5;               /* total time of wave propagation, sec */
-    wavelet.timeStep = 0.5 * param.modelDx / h_model.maxVel;         /* time step assuming constant vp, sec */
-    wavelet.timeSamplesNt = round(wavelet.totalTime / wavelet.timeStep);      /* number of time steps */
+    wavelet.timeStep = 0.5 * param.modelDx / h_model.maxVel;          //time step assuming constant vp, sec
+    //wavelet.timeStep = 0.001;
+    wavelet.timeSamplesNt = round(wavelet.totalTime / wavelet.timeStep);    // number of time steps
     wavelet.snapStep = round(0.1 * wavelet.timeSamplesNt);   /* save snapshot every ... steps */
 
     float f0 = 10.0;                    /* source dominawavelet.timeSamplesNt frequency, Hz */

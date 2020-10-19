@@ -46893,26 +46893,26 @@ Cp:   fomels@vostok   Fri Mar 14 15:32:36 2003
 		sepstr_ready_out() : sets next in="stdin"
 		data_format="xdr_float"
 
-3.1-git	sfdd	LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild:	atila@JurosComposto	Mon Sep  7 20:20:25 2020
+3.1-git	sfdd	LSRTM_GPU_proj/Born/madagascarBuild:	atila@JurosComposto	Mon Oct 19 14:59:37 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfscale	LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild:	atila@JurosComposto	Mon Sep  7 20:20:25 2020
+3.1-git	sfscale	LSRTM_GPU_proj/Born/madagascarBuild:	atila@JurosComposto	Mon Oct 19 14:59:37 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfput	LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild:	atila@JurosComposto	Mon Sep  7 20:20:25 2020
+3.1-git	sfput	LSRTM_GPU_proj/Born/madagascarBuild:	atila@JurosComposto	Mon Oct 19 14:59:37 2020
 
 	d2=0.024000
 	unit2=km
 	data_format="native_float"
-	in="/var/tmp/LSRTM_GPU_proj/FD-Seismic-data/madagascarBuild/marmsmooth.rsf@"
+	in="/var/tmp/LSRTM_GPU_proj/Born/madagascarBuild/marmsmooth.rsf@"
 	label1=Depth
 	d1=0.024000
 	unit1=km
