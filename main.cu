@@ -31,6 +31,7 @@ typedef struct{
     int nReceptors;
     int lastReceptorPos;
     int incShots;
+    int incRec;
     int modelNx;
     int modelNy;
     int modelNxBorder;
@@ -150,6 +151,7 @@ geometry getParameters(sf_file FvelModel)
     sf_getint("gxbeg",&param.firstReceptorPos);
     sf_getint("nshots",&param.nShots);
     sf_getint("incShots",&param.incShots);
+    sf_getint("incRec",&param.incRec);
     sf_histint(FvelModel, "n1",&param.modelNy);
     sf_histint(FvelModel, "n2", &param.modelNx);
     sf_histfloat(FvelModel, "d1",&param.modelDy);
@@ -221,8 +223,10 @@ seismicData allocHostSeisData(geometry param, int nt)
 source fillSrc(geometry param, velocity h_model)
 {
     source wavelet;
-    wavelet.totalTime = 2.5;               /* total time of wave propagation, sec */
-    wavelet.timeStep = 0.5 * param.modelDx / h_model.maxVel;          //time step assuming constant vp, sec
+    wavelet.totalTime = 3;               /* total time of wave propagation, sec */
+    float one_dx2 = float(1) / (param.modelDx * param.modelDx);
+    float one_dy2 = float(1) / (param.modelDy * param.modelDy);
+    wavelet.timeStep = 0.5 / (h_model.maxVel * sqrt(one_dx2 + one_dy2)) ;         /* time step assuming constant vp, sec */
     //wavelet.timeStep = 0.001;
     wavelet.timeSamplesNt = round(wavelet.totalTime / wavelet.timeStep);    // number of time steps
     wavelet.snapStep = round(0.1 * wavelet.timeSamplesNt);   /* save snapshot every ... steps */
@@ -311,6 +315,12 @@ int main(int argc, char *argv[])
     sf_file Fonly_directWave = createFile3D("OD",dimensions,spacings,origins);
     sf_file Fdata = createFile3D("data",dimensions,spacings,origins);
 
+
+    sf_putint(Fdata,"incShots",param.incShots);
+    sf_putint(Fdata,"incRec",param.incRec);
+    sf_putint(Fdata,"gxbeg",param.firstReceptorPos);
+    sf_putint(Fdata,"sxbeg",param.srcPosX);
+    sf_putint(Fdata,"sybeg",param.srcPosY);
 
     test_getParameters(param, h_wavelet);
 

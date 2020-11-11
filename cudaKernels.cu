@@ -153,7 +153,9 @@ __global__ void kernel_2dfd(float *d_u1, float *d_u2, float *d_vp)
     const int ny = c_ny;
 
     // FD coefficient dt2 / dx2
-    const float dt2dx2 = c_dt2dx2;
+    const float dt2 = c_dt2;
+    const float one_dx2 = c_one_dx2;
+    const float one_dy2 = c_one_dy2;
 
     // Thread address (ty, tx) in a block
     const unsigned int tx = threadIdx.x;
@@ -178,26 +180,27 @@ __global__ void kernel_2dfd(float *d_u1, float *d_u2, float *d_vp)
     // If thread points into the physical domain
     if ((gx < nx) && (gy < ny))
     {
-        // Copy regions from gmem into smem
-        //       gmem, smem,  block, shared, global, dims
-        set_halo(d_u1, s_u1, tx, ty, sx, sy, gx, gy, nx, ny);
-        set_halo(d_u2, s_u2, tx, ty, sx, sy, gx, gy, nx, ny);
-        set_halo(d_vp, s_vp, tx, ty, sx, sy, gx, gy, nx, ny);
-        __syncthreads();
+	// Copy regions from gmem into smem
+	//       gmem, smem,  block, shared, global, dims
+	set_halo(d_u1, s_u1, tx, ty, sx, sy, gx, gy, nx, ny);
+	set_halo(d_u2, s_u2, tx, ty, sx, sy, gx, gy, nx, ny);
+	set_halo(d_vp, s_vp, tx, ty, sx, sy, gx, gy, nx, ny);
+	__syncthreads();
 
-        // Central point of fd stencil, o o o o x o o o o
-        float du2_xx = c_coef[0] * s_u2[sy][sx];
-        float du2_yy = c_coef[0] * s_u2[sy][sx];
+	// Central point of fd stencil, o o o o x o o o o
+	float du2_xx = c_coef[0] * s_u2[sy][sx];
+	float du2_yy = c_coef[0] * s_u2[sy][sx];
 
 #pragma unroll
-        for (int d = 1; d <= 4; d++)
-        {
-            du2_xx += c_coef[d] * (s_u2[sy][sx - d] + s_u2[sy][sx + d]);
-            du2_yy += c_coef[d] * (s_u2[sy - d][sx] + s_u2[sy + d][sx]);
-        }
-        // Second order wave equation
-        d_u1[idx] = 2.0 * s_u2[sy][sx] - s_u1[sy][sx] + s_vp[sy][sx] * s_vp[sy][sx] * (du2_xx + du2_yy) * dt2dx2;
+	for (int d = 1; d <= 4; d++)
+	{
+	    du2_xx += c_coef[d] * (s_u2[sy][sx - d] + s_u2[sy][sx + d]);
+	    du2_yy += c_coef[d] * (s_u2[sy - d][sx] + s_u2[sy + d][sx]);
+	}
+	// Second order wave equation
+	d_u1[idx] = 2.0 * s_u2[sy][sx] - s_u1[sy][sx] + s_vp[sy][sx] * s_vp[sy][sx] * (du2_xx * one_dx2 + du2_yy * one_dy2) * dt2;
+	//d_u1[idx] = du2_xx;
 
-        __syncthreads();
+	__syncthreads();
     }
 }

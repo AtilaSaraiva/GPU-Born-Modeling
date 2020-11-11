@@ -1,4 +1,4 @@
-3.1-git	mod	Códigos/LSRTM_GPU_proj/Born:	atila@JurosComposto	Mon Oct 19 12:58:20 2020
+3.1-git	mod	Códigos/LSRTM_GPU_proj/Born:	atila@JurosComposto	Wed Oct 28 14:45:48 2020
 
 	d2=1
 	n2=400
@@ -9,6 +9,6 @@
 	data_format="native_float"
 	o3=0
 	esize=4
-	in="/var/tmp/modEZHyIy"
+	in="/var/tmp/mod79Q2Uw"
 	d1=1
 	n1=2150

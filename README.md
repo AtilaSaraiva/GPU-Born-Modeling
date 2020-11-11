@@ -1,7 +1,8 @@
 # Synthetic Seismic Data using acoustic wave propagation written in CUDA C++
 
-Simple implementation of the acoustic wave propagation in a 2D model using finite-differences in the
-time-domain and optimized in CUDA.
+Simple implementation of the Born modeling algorithm in a 2D model using finite-differences in the
+time-domain and optimized in CUDA. Born modeling have as a objective to demigrate a migrated seismic
+image. It is generally used inside the Least Squares Reverse Time Migration Scheme.
 
 To compile the code just run:
 
@@ -18,7 +19,7 @@ make run
 the result will be called seismicData.rsf. You can use:
 
 ```
-sfimage <seismicData.rsf
+sfimage <testData/seismicData.rsf
 ```
 to visualize it.
 
