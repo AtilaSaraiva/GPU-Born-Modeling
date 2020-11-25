@@ -103,7 +103,7 @@ void expand(int nb, int nyb, int nxb, int nz, int nx, float *a, float *b)
 void abc_coef (int nb, float *abc)
 {
     for(int i=0; i<nb; i++){
-        abc[i] = exp (-pow(0.0008 * (nb - i + 1),2.0));
+        abc[i] = exp (-pow(0.002 * (nb - i + 1),2.0));
     }
 }
 
@@ -135,7 +135,7 @@ sf_file createFile3D (const char *name, int dimensions[3], float spacings[3], in
         sprintf(key_d,"d%i",i+1);
         sprintf(key_o,"o%i",i+1);
         sf_putint(Fdata,key_n,dimensions[i]);
-        sf_putint(Fdata,key_d,spacings[i]);
+        sf_putfloat(Fdata,key_d,spacings[i]);
         sf_putint(Fdata,key_o,origins[i]);
     }
 
@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
 
     // Set Output files
     int dimensions[3] = {h_wavelet.timeSamplesNt,param.nReceptors,param.nShots};
-    float spacings[3] = {1,1,1};
+    float spacings[3] = {h_wavelet.timeStep,param.modelDx,10};
     int origins[3] = {0,0,0};
     sf_file Fdata_directWave = createFile3D("comOD",dimensions,spacings,origins);
     sf_file Fonly_directWave = createFile3D("OD",dimensions,spacings,origins);
@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
 
 
     // ===================MODELING======================
-    modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, true);
+    modeling(param, h_model, h_wavelet, h_tapermask, h_seisData, Fonly_directWave, Fdata_directWave, Fdata, false);
     // =================================================
 
     printf("Clean memory...");

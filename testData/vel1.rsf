@@ -1,8 +1,8 @@
-3.1-git	sfspike	LSRTM_GPU_proj/Born/testData:	atila@JurosComposto	Mon Oct 19 11:38:06 2020
+3.1-git	sfspike	LSRTM_GPU_proj/Born/testData:	asqs@marreca	Wed Nov 11 11:25:59 2020
 
-	d2=10
+	d2=25
 	o1=0
-	n2=700
+	n2=368
 	o2=0
 	label1="Time"
 	data_format="native_float"
@@ -11,5 +11,5 @@
 	in="/var/tmp/vel1.rsf@"
 	unit1="s"
 	unit2="km"
-	d1=10
-	n1=500
+	d1=8
+	n1=425

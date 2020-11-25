@@ -22,11 +22,9 @@ mod: main.cu cuwaveprop2d.cu cudaKernels.cu
 
 run: mod
 	#./mod nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
-	sh $(dFold)/createRefField.sh
-	sh $(dFold)/createVelField.sh
 	./mod nr=368 nshots=3 incShots=100 incRec=0 isrc=0 jsrc=100 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
 	#sfimage <$(dFold)/$(data)
-	#sfgrey <$(dFold)/$(data) | sfpen &
+	sfgrey <$(dFold)/$(data) >seismicData.vpl
 	#ximage n1=920 <snap/snap_u3_s0_1290_920_1120
 	#ximage n1=780 <test_kernel_add_sourceArray &
 	#ximage n1=780 <snap/snap_u3_s0_0_780_980 &

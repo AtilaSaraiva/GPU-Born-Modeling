@@ -1,4 +1,4 @@
-3.1-git	sfspike	LSRTM_GPU_proj/Born/testData:	asqs@marreca	Wed Nov 11 11:25:54 2020
+3.1-git	sfspike	asqs/LSRTM_GPU_proj/Born:	asqs@marreca	Wed Nov 18 12:19:54 2020
 
 	d2=25
 	o1=0
@@ -8,7 +8,7 @@
 	data_format="native_float"
 	label2="Distance"
 	esize=4
-	in="/var/tmp/ref.rsf@"
+	in="/var/tmp/vel2.rsf@"
 	unit1="s"
 	unit2="km"
 	d1=8

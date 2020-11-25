@@ -218,7 +218,6 @@ void modeling(geometry param, velocity h_model, source h_wavelet, float *h_taper
             kernel_2dfd<<<grid, block>>>(d_q1, d_q2, d_vp);
             kernel_applySourceArray<<<grid, block>>>(h_wavelet.timeStep, d_reflectivity, d_u2, d_vp, d_q1);
 
-            //CHECK(cudaDeviceSynchronize());
             receptors<<<(param.nReceptors + 32) / 32, 32>>>(it, param.nReceptors, param.firstReceptorPos, d_q1, d_data);
 
             // Exchange time steps

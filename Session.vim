@@ -32,11 +32,11 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 170 - ((27 * winheight(0) + 18) / 36)
+let s:l = 145 - ((16 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-170
+145
 normal! 0
 tabedit cuwaveprop2d.cu
 set splitbelow splitright
@@ -55,12 +55,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 121 - ((16 * winheight(0) + 18) / 36)
+let s:l = 214 - ((8 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-121
-normal! 05|
+214
+normal! 013|
 tabedit main.cu
 set splitbelow splitright
 wincmd t
@@ -78,12 +78,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 227 - ((15 * winheight(0) + 18) / 36)
+let s:l = 305 - ((9 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-227
-normal! 05|
+305
+normal! 014|
 tabedit Makefile
 set splitbelow splitright
 wincmd t
@@ -101,12 +101,12 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 25 - ((23 * winheight(0) + 18) / 36)
+let s:l = 28 - ((27 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-25
-normal! 041|
+28
+normal! 037|
 tabnext 4
 set stal=1
 if exists('s:wipebuf') && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
