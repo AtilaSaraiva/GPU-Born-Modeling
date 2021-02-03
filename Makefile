@@ -8,6 +8,21 @@ endif
 
 CULIBS= -L /opt/cuda/lib -I /opt/cuda/include -lcudart -lcuda -lstdc++ -lcufft
 
+ODIR = ../../library
+IDIR = ../../include
+
+#SOURCE = $(wildcard $(ODIR)/*.cu)
+#OBJ = $(SOURCE:.cu=.o)
+
+_OBJ = born.o snap.o io.o
+OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+
+DEPS = $(wildcard $(IDIR)/*.cuh)
+
+CFLAGS = -I$(IDIR) -arch=sm_30
+
+PROG = mod
+
 dFold=testData
 data=seismicData.rsf
 OD=directwave.rsf
@@ -15,10 +30,16 @@ comOD=seismicDataWithDirectWave.rsf
 vel=vel.rsf
 ref=ref.rsf
 
+$(PROG): main.o $(OBJ)
+	nvcc main.o $(OBJ) $(CFLAGS) $(LDFLAGS) -o $@
 
-mod: main.cu cuwaveprop2d.cu cudaKernels.cu
-	@echo $(host)
-	nvcc main.cu $(LDFLAGS) -o mod
+main.o: main.cu $(DEPS)
+	nvcc -x cu $(CFLAGS) $(LDFLAGS) -o $@ -dc $<
+
+$(ODIR)/%.o: $(ODIR)/%.cu $(DEPS)
+	nvcc -x cu $(CFLAGS) $(LDFLAGS) -o $@ -dc $<
+
+
 
 run: mod
 	#./mod nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
@@ -32,3 +53,8 @@ run: mod
 
 profile: mod
 	nvprof ./mod nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
+
+PHONY: clean
+
+clean:
+	rm -f $(ODIR)/*.o $(PROG) *.o

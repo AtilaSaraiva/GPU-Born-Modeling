@@ -77,26 +77,26 @@ sfcp:	fomels@vostok	Wed Aug 27 16:45:34 2003
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfdd	LSRTM_GPU_proj/Born/madagascarBuild:	atila@JurosComposto	Mon Oct 19 16:36:50 2020
+3.1-git	sfdd	projects/Born/madagascarBuild:	asqs@marreca	Wed Nov 25 17:43:16 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfscale	LSRTM_GPU_proj/Born/madagascarBuild:	atila@JurosComposto	Mon Oct 19 16:36:50 2020
+3.1-git	sfscale	projects/Born/madagascarBuild:	asqs@marreca	Wed Nov 25 17:43:16 2020
 
 	data_format="native_float"
 	esize=4
 	in="stdout"
 	in="stdin"
 
-3.1-git	sfput	LSRTM_GPU_proj/Born/madagascarBuild:	atila@JurosComposto	Mon Oct 19 16:36:50 2020
+3.1-git	sfput	projects/Born/madagascarBuild:	asqs@marreca	Wed Nov 25 17:43:16 2020
 
 	d2=0.008000
 	unit2=km
 	data_format="native_float"
-	in="/var/tmp/LSRTM_GPU_proj/Born/madagascarBuild/marmvel.rsf@"
+	in="/var/tmp/projects/Born/madagascarBuild/marmvel.rsf@"
 	label1=Depth
 	d1=0.008000
 	unit1=km

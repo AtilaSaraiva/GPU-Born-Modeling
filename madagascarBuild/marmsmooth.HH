@@ -1,1 +1,0 @@
-/var/tmp/LSRTM_GPU_proj/Born/madagascarBuild/marmsmooth.HH
