@@ -1,7 +1,0 @@
-rm --force snap/*
-rm seismicData.rsf
-cd ..
-rm mod
-make
-cd -
-scons

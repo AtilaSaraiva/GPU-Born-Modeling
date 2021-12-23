@@ -1,30 +1,15 @@
 from rsf.proj import *
-# Fetch Files from repository
-raw=['marmvel.hh','marmsmooth.HH']
-for file in raw:
-    Fetch(file,"marm")
-    if file == 'marmvel.hh':
-        d=.008
-        #d=0.044
-        fileOut='marmvel'
-        t='Velocity\ Model'
-    if file == 'marmsmooth.HH':
-        d=.024
-        fileOut='marmsmooth'
-        t='Smoothed\ Velocity\ Model'
-# Convert Files to RSF and update headers
-    Flow(fileOut,file,'''dd form=native |
-        scale rscale=.001 | put
-        label1=Depth label2=Position unit1=km unit2=km
-        d1=%f d2=%f''' % (d,d))
-# Plotting Section
-    Result(fileOut,'''window $SOURCE  |
-        grey color=I gainpanel=a allpos=y scalebar=y
-        title=%s barlabel=Velocity barunit=km/s screenratio=.326
-        screenht=3 wheretitle=t labelsz=4 titlesz=6 ''' % t)
 
-    Flow('marmref','marmvel','deriv')
-    Result('marmref','grey')
+Flow('marmref','marmvel','deriv')
+Result('marmref','grey')
 
-    Flow('seismicData','marmvel marmref','../mod incShots=100 nshots=17 nr=600 isrc=0 jsrc=300 gxbeg=0 ref=${SOURCES[1]} vel=${SOURCES[0]} data=${TARGETS[0]} ',stdout=0)
+nshots = 38
+incShots = 8
+
+
+Flow('seismicData','marmvel marmref',
+"""./mod incShots=8 incRec=0 nshots=38 nr=368 isrc=0 jsrc=34 gxbeg=0 ref=${SOURCES[1]} vel=${SOURCES[0]} data=${TARGETS[0]} """,stdout=0)
+
+Result('seismicData', "grey gainpanel=a")
+
 End()

@@ -43,8 +43,7 @@ $(ODIR)/%.o: $(ODIR)/%.cu $(DEPS)
 
 run: mod
 	#./mod nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
-	./mod nr=368 nshots=3 incShots=100 incRec=0 isrc=0 jsrc=100 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
-	#sfimage <$(dFold)/$(data)
+	/usr/bin/time ./mod nr=368 nshots=3 incShots=100 incRec=0 isrc=0 jsrc=100 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
 	sfgrey <$(dFold)/$(data) >seismicData.vpl
 	#ximage n1=920 <snap/snap_u3_s0_1290_920_1120
 	#ximage n1=780 <test_kernel_add_sourceArray &
@@ -52,7 +51,7 @@ run: mod
 	#ximage n1=780 <snap/snap_u3_s1_0_780_980 &
 
 profile: mod
-	nvprof ./mod nr=400 nshots=2 incShots=100 isrc=0 jsrc=200 gxbeg=0 vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
+	nvprof ./mod nr=368 nshots=3 incShots=100 incRec=0 isrc=0 jsrc=100 gxbeg=0 ref=$(dFold)/$(ref) vel=$(dFold)/$(vel) data=$(dFold)/$(data) OD=$(dFold)/$(OD) comOD=$(dFold)/$(comOD)
 
 PHONY: clean
 
